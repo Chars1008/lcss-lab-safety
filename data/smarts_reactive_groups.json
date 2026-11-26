@@ -1,0 +1,16 @@
+[
+  {"group_id": "RG17", "name": "Peroxide (-O-O-)", "smarts": "[OX2][OX2]"},
+  {"group_id": "RG07", "name": "Azide (-N3)", "smarts": "[NX2]=[NX2]=[NX1]"},
+  {"group_id": "RG07", "name": "Azide (ionic/general)", "smarts": "[N-]=[N+]=[N-]"},
+  {"group_id": "RG10", "name": "Nitrile / Cyanide", "smarts": "[CX2]#[NX1]"},
+  {"group_id": "RG05", "name": "Aldehyde", "smarts": "[CX3H1](=O)[#6,#1]"},
+  {"group_id": "RG03", "name": "Carboxylic Acid", "smarts": "[CX3](=O)[OX2H1]"},
+  {"group_id": "RG15", "name": "Ketone", "smarts": "[#6][CX3](=O)[#6]"},
+  {"group_id": "RG11", "name": "Ester", "smarts": "[#6][CX3](=O)[OX2][#6]"},
+  {"group_id": "RG18", "name": "Phenol", "smarts": "[OX2H][cX3]:[c]"},
+  {"group_id": "RG04", "name": "Alcohol", "smarts": "[OX2H][CX4]"},
+  {"group_id": "RG12", "name": "Ether", "smarts": "[OD2]([#6])[#6]"},
+  {"group_id": "RG06", "name": "Amine", "smarts": "[NX3;H2,H1,H0;!$(NC=O)]"},
+  {"group_id": "RG13", "name": "Halogenated Organic", "smarts": "[CX4][F,Cl,Br,I]"},
+  {"group_id": "RG16", "name": "Nitro / Strong Oxidizer Motif", "smarts": "[$([NX3](=O)=O),$([NX3+](=O)[O-])][O]"}
+]

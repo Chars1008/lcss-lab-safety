@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<style>
+  body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; font-size: 10pt; color: #1f2937; margin: 16px; }
+  .banner { border: 1.5px solid #b91c1c; background: #fef2f2; color: #991b1b; padding: 8px 12px; font-size: 9pt; font-weight: bold; margin-bottom: 12px; }
+  h1 { font-size: 16pt; margin: 0 0 4px 0; color: #111827; }
+  .subtitle { font-size: 10pt; color: #4b5563; margin-bottom: 12px; }
+  h2 { font-size: 11.5pt; background: #1e3a8a; color: #ffffff; padding: 5px 8px; margin: 14px 0 6px 0; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; width: 24%; font-weight: bold; }
+  .pictograms img { width: 54px; height: 54px; margin-right: 6px; }
+  .signal { display: inline-block; padding: 2px 8px; background: #dc2626; color: #fff; font-weight: bold; border-radius: 3px; }
+  .footer { margin-top: 18px; border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 8.5pt; color: #475569; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    系統彙整內部參考版（資料來源：{{ sds.data_source }} / PubChem / 台灣 GHS，正式法規依據請以供應商原廠 SDS 為準）
+  </div>
+  <h1>安全資料表（Safety Data Sheet, SDS）</h1>
+  <div class="subtitle">{{ sds.name_zh or sds.name_en }}（CAS: {{ sds.cas_number }}）</div>
+
+  <h2>1. 化學品與廠商資料</h2>
+  <table>
+    <tr><th>化學品中文名稱</th><td>{{ sds.name_zh or "—" }}</td></tr>
+    <tr><th>化學品英文名稱</th><td>{{ sds.name_en or "—" }}</td></tr>
+    <tr><th>建議用途</th><td>{{ sds.recommended_use }}</td></tr>
+    <tr><th>製造商/供應商資料</th><td>{{ sds.supplier_info or "實驗室自建／待補充" }}</td></tr>
+    <tr><th>緊急聯絡電話</th><td>{{ sds.emergency_phone }}</td></tr>
+  </table>
+
+  <h2>2. 危害辨識資料</h2>
+  <table>
+    <tr><th>危害圖示</th><td class="pictograms">
+      {% for svg_uri in pictogram_uris %}
+        <img src="{{ svg_uri }}" alt="GHS" />
+      {% else %}
+        無須標示危害圖示
+      {% endfor %}
+    </td></tr>
+    <tr><th>警示語</th><td>{% if sds.signal_word %}<span class="signal">{{ sds.signal_word }}</span>{% else %}無{% endif %}</td></tr>
+    <tr><th>危害成分分類</th><td>{{ sds.hazard_classification_zh or "依 GHS H 代碼分類" }}</td></tr>
+    <tr><th>危害警告訊息 (H)</th><td>
+      {% for line in sds.h_statements_zh %}<div>{{ line }}</div>{% else %}無{% endfor %}
+    </td></tr>
+    <tr><th>危害防範措施 (P)</th><td>
+      {% for line in sds.p_statements_zh %}<div>{{ line }}</div>{% else %}無{% endfor %}
+    </td></tr>
+  </table>
+
+  <h2>3. 成分辨識資料</h2>
+  <table>
+    <tr><th>CAS No.</th><td>{{ sds.cas_number }}</td></tr>
+    <tr><th>分子式 / 分子量</th><td>{{ sds.formula or "—" }} / {{ sds.molecular_weight or "—" }} g/mol</td></tr>
+    <tr><th>含量 / 備註</th><td>{{ sds.composition_note }}</td></tr>
+  </table>
+
+  <h2>4. 急救措施</h2><p>{{ sds.section_4_first_aid }}</p>
+  <h2>5. 滅火措施</h2><p>{{ sds.section_5_fire_fighting }}</p>
+  <h2>6. 洩漏處理方法</h2><p>{{ sds.section_6_accidental_release }}</p>
+  <h2>7. 安全處置與儲存方法</h2><p>{{ sds.section_7_handling_storage }}</p>
+  <h2>8. 暴露預防措施</h2><p>{{ sds.section_8_exposure_controls }}</p>
+  <h2>9. 物理及化學性質</h2><p>{{ sds.section_9_physical_chemical }}</p>
+  <h2>10. 安定性及反應性</h2><p>{{ sds.section_10_stability_reactivity }}</p>
+  <h2>11. 毒性資料</h2><p>{{ sds.section_11_toxicological }}</p>
+  <h2>12. 生態資料</h2><p>{{ sds.section_12_ecological }}</p>
+  <h2>13. 廢棄處置方法</h2><p>{{ sds.section_13_disposal }}</p>
+  <h2>14. 運送資料</h2><p>{{ sds.section_14_transport }}</p>
+  <h2>15. 法規資料</h2><p>{{ sds.section_15_regulatory }}</p>
+  <h2>16. 其他資料</h2><p>{{ sds.section_16_other }}</p>
+
+  <div class="footer">
+    產生時間：{{ generated_at_str }} ｜ 系統彙整內部參考版（正式法規依據請以供應商原廠 SDS 為準）
+  </div>
+</body>
+</html>

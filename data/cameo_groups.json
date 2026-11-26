@@ -1,0 +1,22 @@
+{
+  "RG01": {"name_en": "Acids, Strong Non-oxidizing", "name_zh": "強非氧化性酸（如鹽酸、硫酸稀液）"},
+  "RG02": {"name_en": "Acids, Strong Oxidizing", "name_zh": "強氧化性酸（如濃硝酸、過氯酸）"},
+  "RG03": {"name_en": "Acids, Weak Organic", "name_zh": "弱有機酸（如醋酸、甲酸）"},
+  "RG04": {"name_en": "Alcohols and Polyols", "name_zh": "醇類與多元醇（如乙醇、異丙醇、甘油）"},
+  "RG05": {"name_en": "Aldehydes", "name_zh": "醛類（如甲醛、戊二醛）"},
+  "RG06": {"name_en": "Amines and Alkanolamines", "name_zh": "胺類（如氨水、三乙胺、Tris）"},
+  "RG07": {"name_en": "Azides", "name_zh": "疊氮化物（如疊氮化鈉）"},
+  "RG08": {"name_en": "Bases, Strong", "name_zh": "強鹼（如氫氧化鈉、氫氧化鉀）"},
+  "RG09": {"name_en": "Chlorinating / Oxidizing Bleaches", "name_zh": "次氯酸鹽／強氯氧化劑（如漂白水、次氯酸鈉）"},
+  "RG10": {"name_en": "Cyanides and Nitriles", "name_zh": "氰化物與腈類（如氰化鉀、乙腈）"},
+  "RG11": {"name_en": "Esters and Lactones", "name_zh": "酯類（如乙酸乙酯）"},
+  "RG12": {"name_en": "Ethers", "name_zh": "醚類（如乙醚、四氫呋喃 THF）"},
+  "RG13": {"name_en": "Halogenated Organics", "name_zh": "鹵代有機溶劑（如氯仿、二氯甲烷）"},
+  "RG14": {"name_en": "Hydrocarbons, Aliphatic & Aromatic", "name_zh": "烴類溶劑（如正己烷、甲苯、二甲苯）"},
+  "RG15": {"name_en": "Ketones", "name_zh": "酮類（如丙酮、丁酮）"},
+  "RG16": {"name_en": "Oxidizing Agents, Strong", "name_zh": "強氧化劑（如過錳酸鉀、重鉻酸鉀）"},
+  "RG17": {"name_en": "Peroxides, Inorganic & Organic", "name_zh": "過氧化物（如雙氧水、過氧化苯甲醯）"},
+  "RG18": {"name_en": "Phenols and Cresols", "name_zh": "酚類（如苯酚、TRIzol）"},
+  "RG19": {"name_en": "Reducing Agents & Active Metals", "name_zh": "強還原劑與活性金屬（如硼氫化鈉、金屬鈉、DTT）"},
+  "RG20": {"name_en": "Water / Aqueous Neutral Salts", "name_zh": "中性水溶液與一般鹽類（如 PBS、NaCl、胍鹽）"}
+}
