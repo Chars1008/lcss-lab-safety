@@ -14,7 +14,7 @@ from app.config import DATA_DIR
 from app.schemas import ControlLevel, GroupSource, ResolvedChemical, SDSPayload
 
 CAS_PATTERN = re.compile(r"^\d{2,7}-\d{2}-\d$")
-H_CODE_PATTERN = re.compile(r"\bH\d{3}[a-zA-Z]*\b")
+H_CODE_PATTERN = re.compile(r"\b(?:EU)?H\d{3}[a-zA-Z]*\b")
 P_CODE_PATTERN = re.compile(r"\bP\d{3}(?:\+P\d{3})*\b")
 
 
@@ -221,6 +221,7 @@ class ChemResolver:
                 return None
 
             ghs_info = self._fetch_pubchem_ghs(http, cid)
+            prop_extra = self._fetch_pubchem_properties_and_hazards(http, cid)
             cas = q if validate_cas_checksum(q) else ghs_info.get("cas") or q
             tw_info = self._fetch_tw_ghs(http, cas) if validate_cas_checksum(cas) else {}
 
@@ -248,6 +249,7 @@ class ChemResolver:
                 mw = offline.molecular_weight if offline else None
 
             offline_extra = self._cas_map.get(cas, {}).get("sds_extra") if validate_cas_checksum(cas) else None
+            merged_extra = {**prop_extra, **(offline_extra or {})}
             sds = self._build_sds_payload(
                 cas=cas,
                 name_zh=name_zh,
@@ -261,7 +263,7 @@ class ChemResolver:
                 h_codes=h_codes,
                 p_codes=p_codes,
                 data_source="PUBCHEM_TW_GHS",
-                extra=offline_extra,
+                extra=merged_extra,
             )
             return ResolvedChemical(
                 cas_number=cas,
@@ -331,6 +333,76 @@ class ChemResolver:
             return result
         except (httpx.HTTPError, ValueError):
             return result
+
+    def _extract_pug_view_sections(self, sections: list[dict[str, Any]], out: dict[str, list[str]]) -> None:
+        """Recursively flatten PubChem PUG-View TOCHeading -> string values."""
+        for sec in sections:
+            heading = sec.get("TOCHeading", "")
+            vals: list[str] = []
+            for inf in sec.get("Information", []):
+                val = inf.get("Value", {})
+                for swm in val.get("StringWithMarkup", []):
+                    s = swm.get("String", "").strip()
+                    if s:
+                        vals.append(s)
+                nums = val.get("Number", [])
+                unit = val.get("Unit", "")
+                if nums:
+                    vals.append(f"{nums[0]} {unit}".strip())
+            if heading and vals:
+                out.setdefault(heading, []).extend(vals)
+            self._extract_pug_view_sections(sec.get("Section", []), out)
+
+    def _fetch_pubchem_properties_and_hazards(self, http: httpx.Client, cid: int) -> dict[str, Any]:
+        """Fetch experimental physical properties and safety hazards from PubChem PUG-View."""
+        collected: dict[str, list[str]] = {}
+        for heading in ("Chemical+and+Physical+Properties", "Safety+and+Hazards"):
+            url = f"{self.PUBCHEM_VIEW}/data/compound/{cid}/JSON?heading={heading}"
+            try:
+                resp = http.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    self._extract_pug_view_sections(
+                        data.get("Record", {}).get("Section", []), collected
+                    )
+            except (httpx.HTTPError, ValueError):
+                continue
+
+        extra: dict[str, Any] = {}
+        heading_map = {
+            "Physical Description": "phys_appearance",
+            "Color/Form": "phys_appearance",
+            "Odor": "phys_odor",
+            "Melting Point": "phys_melting_point",
+            "Boiling Point": "phys_boiling_point",
+            "Flash Point": "phys_flash_point",
+            "Density": "phys_density",
+            "Solubility": "phys_solubility",
+            "Vapor Pressure": "phys_vapor_pressure",
+            "Vapor Density": "phys_vapor_density",
+            "LogP": "phys_log_kow",
+            "XLogP3": "phys_log_kow",
+            "Autoignition Temperature": "phys_autoignition_temp",
+        }
+        for toc_key, sds_field in heading_map.items():
+            if toc_key in collected and sds_field not in extra:
+                extra[sds_field] = "；".join(collected[toc_key][:2])
+
+        if "Hazards Summary" in collected:
+            summary = " ".join(collected["Hazards Summary"][:2])
+            extra["fire_special_hazards"] = summary
+            extra["first_aid_symptoms"] = summary
+
+        if "Fire Fighting" in collected:
+            extra["fire_procedures"] = "\n".join(collected["Fire Fighting"][:3])
+
+        chem_classes = " ".join(collected.get("Chemical Classes", []))
+        if "Explosive" in chem_classes or "explosive when dry" in " ".join(
+            collected.get("Hazards Summary", [])
+        ).lower():
+            extra["other_hazards"] = f"PubChem 危害類別：{chem_classes or '具爆炸性風險（乾燥或受熱時須特別注意）'}"
+
+        return extra
 
     def _fetch_tw_ghs(self, http: httpx.Client, cas_number: str) -> dict[str, Any]:
         """Best-effort parser for Taiwan OSHA GHS website; never raises on layout changes."""

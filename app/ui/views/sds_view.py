@@ -72,11 +72,20 @@ class SDSView(QWidget):
         top_row.addWidget(QLabel("選擇化學品："))
         self.chem_combo = QComboBox()
         self.chem_combo.currentIndexChanged.connect(self._on_chem_changed)
-        reload_btn = QPushButton("重新載入")
+        reload_btn = QPushButton("重新載入清單")
         reload_btn.clicked.connect(self.reload_chemicals)
+        enrich_btn = QPushButton("線上補全物化/危害資料")
+        enrich_btn.clicked.connect(self._on_enrich_online)
         top_row.addWidget(self.chem_combo, 1)
         top_row.addWidget(reload_btn)
+        top_row.addWidget(enrich_btn)
         layout.addLayout(top_row)
+
+        self.active_chem_banner = QLabel("目前編輯：尚未選擇化學品")
+        self.active_chem_banner.setStyleSheet(
+            "background: #eff6ff; border: 1px solid #93c5fd; padding: 6px 10px; border-radius: 4px; font-weight: bold; color: #1e3a8a;"
+        )
+        layout.addWidget(self.active_chem_banner)
 
         self.tabs = QTabWidget()
 
@@ -212,16 +221,27 @@ class SDSView(QWidget):
         self.reload_chemicals()
 
     def reload_chemicals(self) -> None:
-        self.chem_combo.clear()
-        with self.db.get_session() as session:
-            for c in LCSSRepository(session).search_chemicals():
-                self.chem_combo.addItem(f"{c.name_zh or c.name_en} ({c.cas_number})", c.id)
+        prev_id = self.chem_combo.currentData()
+        self.chem_combo.blockSignals(True)
+        try:
+            self.chem_combo.clear()
+            with self.db.get_session() as session:
+                for c in LCSSRepository(session).search_chemicals():
+                    self.chem_combo.addItem(f"{c.name_zh or c.name_en} ({c.cas_number})", c.id)
+            if prev_id is not None:
+                idx = self.chem_combo.findData(prev_id)
+                if idx >= 0:
+                    self.chem_combo.setCurrentIndex(idx)
+        finally:
+            self.chem_combo.blockSignals(False)
+        self._on_chem_changed()
 
-    def _on_chem_changed(self) -> None:
+    def _on_chem_changed(self, _index: int = -1) -> None:
         chem_id = self.chem_combo.currentData()
         self._current_chem_id = chem_id
         if chem_id is None:
             self._current_payload = None
+            self.active_chem_banner.setText("目前編輯：尚未選擇化學品（請先於「藥品庫存與入庫」解析並入庫）")
             return
         with self.db.get_session() as session:
             chem = LCSSRepository(session).get_chemical_by_id(chem_id)
@@ -249,6 +269,11 @@ class SDSView(QWidget):
 
     def _populate_form(self, payload: SDSPayload) -> None:
         self._current_payload = payload
+        self.active_chem_banner.setText(
+            f"目前編輯：{payload.name_zh or payload.name_en} ({payload.cas_number})"
+            f" ｜ 警示語：{payload.signal_word or '無'}"
+            f" ｜ 來源：{payload.data_source}"
+        )
         self.epa_no_edit.setText(payload.epa_control_no)
         self.supplier_edit.setText(payload.supplier_info)
         self.recommended_use_edit.setText(payload.recommended_use)
@@ -417,3 +442,22 @@ class SDSView(QWidget):
     def _on_llm_done(self, updated: SDSPayload) -> None:
         self._populate_form(updated)
         self.status_lbl.setText("Ollama 潤飾完成（請人工檢視後再儲存或匯出）。")
+
+    def _on_enrich_online(self) -> None:
+        if self._current_payload is None or self._current_chem_id is None:
+            return
+        cas = self._current_payload.cas_number
+        self.status_lbl.setText(f"正在背景查詢 PubChem / 台灣 GHS 補全 {cas} 物化與危害資料...")
+        worker = AsyncWorker(self.resolver.resolve_online, cas)
+        worker.signals.finished.connect(self._on_enrich_done)
+        self.thread_pool.start(worker)
+
+    def _on_enrich_done(self, resolved) -> None:
+        if resolved is None or resolved.sds_payload is None or self._current_chem_id is None:
+            self.status_lbl.setText("線上查詢未取得額外資料，請檢查網路連線或手動編輯。")
+            return
+        with self.db.get_session() as session:
+            LCSSRepository(session).upsert_chemical(resolved)
+        resolved.sds_payload.emergency_phone = self.settings.emergency_phone
+        self._populate_form(resolved.sds_payload)
+        self.status_lbl.setText(f"已完成 {resolved.cas_number} 線上物化與危害資料補全並儲存！")

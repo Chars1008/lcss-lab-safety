@@ -69,6 +69,19 @@ def test_detailed_taiwan_epa_format_sds_for_acrylamide(tmp_path):
         assert expected in extracted
 
 
+def test_dnph_sds_includes_explosive_when_dry_and_physical_properties(tmp_path):
+    resolver = ChemResolver()
+    dnph = resolver.resolve_offline("119-26-6")
+    assert dnph is not None and dnph.sds_payload is not None
+
+    pdf_path = tmp_path / "dnph_sds.pdf"
+    SDSGenerator().export_sds_pdf(dnph.sds_payload, pdf_path)
+    extracted = PDFParser().extract_text(pdf_path)
+
+    for expected in ("119-26-6", "乾燥", "爆炸", "紅橙色結晶粉末", "198–202℃", "3380"):
+        assert expected in extracted
+
+
 @respx.mock
 def test_llm_service_translation_and_graceful_degradation():
     resolver = ChemResolver()

@@ -12,5 +12,6 @@
   {"group_id": "RG12", "name": "Ether", "smarts": "[OD2]([#6])[#6]"},
   {"group_id": "RG06", "name": "Amine", "smarts": "[NX3;H2,H1,H0;!$(NC=O)]"},
   {"group_id": "RG13", "name": "Halogenated Organic", "smarts": "[CX4][F,Cl,Br,I]"},
-  {"group_id": "RG16", "name": "Nitro / Strong Oxidizer Motif", "smarts": "[$([NX3](=O)=O),$([NX3+](=O)[O-])][O]"}
+  {"group_id": "RG16", "name": "Nitro / Strong Oxidizer Motif", "smarts": "[$([NX3](=O)=O),$([NX3+](=O)[O-])][O]"},
+  {"group_id": "RG16", "name": "Polynitro Aromatic (Explosive Risk)", "smarts": "c([N+](=O)[O-])ccc([N+](=O)[O-])c"}
 ]

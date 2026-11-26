@@ -92,5 +92,45 @@
   },
   "1239-45-8": {"name_zh": "溴化乙錠 (EtBr)", "name_en": "Ethidium bromide", "formula": "C21H20BrN3", "mw": 394.31, "smiles": "CC[n+]1c(-c2ccccc2)c2cc(N)ccc2c2ccc(N)cc21.[Br-]", "groups": ["RG06"], "ghs": ["GHS06", "GHS08"], "signal": "危險", "h": ["H302", "H330", "H341"], "p": ["P280", "P304+P340"], "control": "TEACHER_ONLY"},
   "60-00-4": {"name_zh": "乙二胺四乙酸 (EDTA)", "name_en": "Ethylenediaminetetraacetic acid", "formula": "C10H16N2O8", "mw": 292.24, "smiles": "OC(=O)CN(CCN(CC(=O)O)CC(=O)O)CC(=O)O", "groups": ["RG03", "RG06"], "ghs": ["GHS07"], "signal": "警告", "h": ["H319"], "p": ["P305+P351+P338"]},
+  "119-26-6": {
+    "name_zh": "2,4-二硝基苯肼 (DNPH)", "name_en": "2,4-Dinitrophenylhydrazine", "formula": "C6H6N4O4", "mw": 198.14, "smiles": "O=[N+]([O-])c1ccc(NN)c([N+](=O)[O-])c1",
+    "groups": ["RG06", "RG16"], "ghs": ["GHS01", "GHS02", "GHS07"], "signal": "危險",
+    "h": ["H206", "H228", "H302", "H315", "H319", "EUH001"],
+    "p": ["P210", "P233", "P280", "P305+P351+P338"], "control": "TEACHER_ONLY",
+    "sds_extra": {
+      "synonyms": "DNPH、Brady's reagent、2,4-Dinitrophenylhydrazine (wetted with >=30% water)",
+      "recommended_use": "醛酮類定性檢驗試劑（Brady 試劑）；禁止乾燥保存",
+      "hazard_classifications": [
+        "退敏爆炸物第 1/2 級（乾燥狀態極易爆炸）",
+        "易燃固體第 1 級",
+        "急毒性物質第 4 級（吞食）",
+        "嚴重損傷／刺激眼睛物質第 2A 級"
+      ],
+      "other_hazards": "【重大警告】本品乾燥狀態下對撞擊、摩擦、靜電及高熱極度敏感，具爆炸危險！市售品通常含 30%–50% 水分作為退敏劑，若水分蒸乾將恢復高度爆炸性。",
+      "fire_extinguishing_media": "大量水霧冷卻（切勿直接以強力水柱衝擊乾燥固體）。",
+      "fire_special_hazards": "受熱或乾燥狀態下可能劇烈分解甚至發生爆轟，釋放有毒氮氧化物 (NOx) 與一氧化碳。",
+      "handling_notes": "1. 嚴禁讓容器內試劑乾燥；取用後立即補水濕潤並鎖緊瓶蓋。\n2. 嚴禁研磨、敲擊、刮除瓶口乾燥結晶或接觸明火、火花。\n3. 僅限於通風櫥內以最小量操作，遠離氧化劑、強酸與強鹼。",
+      "storage_notes": "1. 須以含水量 >= 30% 的濕潤狀態貯存於陰涼、通風良好處。\n2. 定期巡檢瓶口與液面是否乾涸，一旦發現結晶乾燥應立即通知環安衛專業人員濕潤處理，切勿直接旋轉瓶蓋（避免摩擦引爆）。",
+      "phys_appearance": "紅橙色結晶粉末（商品通常為含水濕潤膏狀/粉末）",
+      "phys_odor": "無明顯氣味",
+      "phys_melting_point": "198–202℃（伴隨分解）",
+      "phys_boiling_point": "分解（加熱前即分解）",
+      "phys_flash_point": "不適用（固體，乾燥具爆炸性）",
+      "phys_vapor_pressure": "0.0000125 mmHg (25℃)",
+      "phys_density": "1.65 g/cm3",
+      "phys_solubility": "微溶於水及乙醇；溶於酸水或二甲基亞碸",
+      "phys_log_kow": "1.47",
+      "stability": "濕潤狀態下常溫安定；乾燥狀態下極不穩定，受熱/摩擦/撞擊易爆炸。",
+      "conditions_to_avoid": "乾燥失水、高熱、明火、靜電、撞擊、摩擦。",
+      "materials_to_avoid": "強氧化劑、強酸、強鹼、重金屬鹽類。",
+      "decomp_products": "氮氧化物 (NOx)、一氧化碳、二氧化碳。",
+      "tox_ld50": "654 mg/kg（大鼠、吞食）",
+      "un_number": "3380（退敏固體爆炸物，濕潤 >= 10% 水） / 1325",
+      "un_shipping_name": "2,4-DINITROPHENYLHYDRAZINE, WETTED",
+      "transport_hazard_class": "第 4.1 類易燃固體（退敏爆炸物）",
+      "packing_group": "I",
+      "erg_guide": "113"
+    }
+  },
   "77-92-9": {"name_zh": "檸檬酸", "name_en": "Citric acid", "formula": "C6H8O7", "mw": 192.12, "smiles": "OC(=O)CC(O)(C(=O)O)CC(=O)O", "groups": ["RG03"], "ghs": ["GHS07"], "signal": "警告", "h": ["H319"], "p": ["P305+P351+P338"]}
 }

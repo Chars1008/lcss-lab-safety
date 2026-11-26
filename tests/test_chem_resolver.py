@@ -52,6 +52,27 @@ def test_online_resolution_with_mocked_pubchem_and_tw_ghs():
     respx.get("https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/180/JSON?heading=GHS+Classification").mock(
         return_value=httpx.Response(200, text='{"Signal": "Danger", "Codes": ["GHS02", "GHS07", "H225", "H319", "P210"]}')
     )
+    respx.get("https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/180/JSON?heading=Chemical+and+Physical+Properties").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "Record": {
+                    "Section": [
+                        {
+                            "TOCHeading": "Experimental Properties",
+                            "Section": [
+                                {"TOCHeading": "Physical Description", "Information": [{"Value": {"StringWithMarkup": [{"String": "Clear colorless liquid"}]}}]},
+                                {"TOCHeading": "Boiling Point", "Information": [{"Value": {"StringWithMarkup": [{"String": "56.05 °C"}]}}]},
+                            ],
+                        }
+                    ]
+                }
+            },
+        )
+    )
+    respx.get("https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/180/JSON?heading=Safety+and+Hazards").mock(
+        return_value=httpx.Response(200, json={"Record": {"Section": []}})
+    )
     respx.get("https://ghs.osha.gov.tw/CHT/intro/search.aspx", params={"cas": cas}).mock(
         return_value=httpx.Response(200, text="<html><span class='chem-name-zh'>丙酮</span></html>")
     )
@@ -63,3 +84,6 @@ def test_online_resolution_with_mocked_pubchem_and_tw_ghs():
     assert resolved.name_zh == "丙酮"
     assert "GHS02" in resolved.ghs_pictograms
     assert "H225" in resolved.h_codes
+    assert resolved.sds_payload is not None
+    assert "Clear colorless liquid" in resolved.sds_payload.phys_appearance
+    assert "56.05 °C" in resolved.sds_payload.phys_boiling_point
