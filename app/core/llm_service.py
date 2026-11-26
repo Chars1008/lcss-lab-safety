@@ -33,7 +33,7 @@ class LocalLLMService:
         host: str = "http://localhost:11434",
         model: str = "qwen2.5:7b",
         enabled: bool = False,
-        timeout: float = 60.0,
+        timeout: float = 180.0,
     ) -> None:
         self.host = host.rstrip("/")
         self.model = model
@@ -86,7 +86,9 @@ class LocalLLMService:
             self.last_error = "Ollama 未啟用"
             return None
         own_client = client is None
-        http = client or httpx.Client(timeout=self.timeout)
+        http = client or httpx.Client(
+            timeout=httpx.Timeout(connect=10.0, read=self.timeout, write=30.0, pool=10.0)
+        )
         try:
             resp = http.post(
                 f"{self.host}/api/generate",
@@ -95,6 +97,7 @@ class LocalLLMService:
                     "prompt": prompt,
                     "format": "json",
                     "stream": False,
+                    "keep_alive": "10m",
                 },
             )
             if resp.status_code != 200:
@@ -160,10 +163,29 @@ class LocalLLMService:
             "transport_hazard_class",
         ]
 
-        # Split into 2 compact batches so smaller local models (7B/9B) translate every key reliably
-        batches = [translatable_fields[:14], translatable_fields[14:]]
+        # Only send fields that actually need translation to minimize tokens & avoid timeouts
+        fields_to_translate: list[str] = []
+        for k in translatable_fields:
+            val = str(getattr(sds, k) or "").strip()
+            if not val or val in ("－", "/"):
+                continue
+            if target_language == "zh-TW":
+                # Skip fields already containing Chinese unless they are mostly English
+                if not _contains_cjk(val) and re.search(r"[A-Za-z]{2,}", val):
+                    fields_to_translate.append(k)
+            else:
+                if _contains_cjk(val):
+                    fields_to_translate.append(k)
+
+        if target_language == "zh-TW" and not sds.name_zh and sds.name_en:
+            fields_to_translate.insert(0, "name_zh")
+
+        batch_size = 7
+        batches = [
+            fields_to_translate[i : i + batch_size]
+            for i in range(0, len(fields_to_translate), batch_size)
+        ]
         if target_language == "zh-TW":
-            batches[0] = ["name_zh"] + batches[0]
             instruction = (
                 "You are a Taiwan chemical safety (GHS) translator. Translate EVERY field value below into "
                 "natural Traditional Chinese (繁體中文). Return ONLY a JSON object with the exact same keys."
@@ -176,7 +198,10 @@ class LocalLLMService:
 
         updates: dict[str, Any] = {}
         for batch_keys in batches:
-            payload_subset = {k: getattr(sds, k) for k in batch_keys}
+            payload_subset = {
+                k: (sds.name_en if k == "name_zh" and not getattr(sds, k) else getattr(sds, k))
+                for k in batch_keys
+            }
             prompt = (
                 f"{instruction}\n"
                 f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"

@@ -39,7 +39,7 @@ class AppSettings(BaseSettings):
     llm_enabled: bool = False
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b"
-    ollama_timeout_seconds: float = 45.0
+    ollama_timeout_seconds: float = 180.0
 
     # Network resolver settings
     network_timeout_seconds: float = 15.0

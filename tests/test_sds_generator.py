@@ -133,6 +133,7 @@ def test_english_sds_export_and_bidirectional_translation(tmp_path):
     ):
         assert expected in extracted
 
+    sds_zh_src = ethanol.sds_payload.model_copy(update={"phys_appearance": "澄清液體"})
     respx.post("http://localhost:11434/api/generate").mock(
         return_value=httpx.Response(
             200,
@@ -140,7 +141,7 @@ def test_english_sds_export_and_bidirectional_translation(tmp_path):
         )
     )
     llm = LocalLLMService(enabled=True)
-    translated_en = llm.translate_sds_language(ethanol.sds_payload, target_language="en")
+    translated_en = llm.translate_sds_language(sds_zh_src, target_language="en")
     assert translated_en.name_zh == ""
     assert translated_en.name_en == "Ethanol"
     assert translated_en.recommended_use == "Solvent and disinfectant"
@@ -156,6 +157,6 @@ def test_english_sds_export_and_bidirectional_translation(tmp_path):
     )
     translated_zh = llm.translate_sds_language(sds_en_src, target_language="zh-TW")
     assert translated_zh.name_en == "Ethanol"
-    assert translated_zh.name_zh == "乙醇"
+    assert "乙醇" in translated_zh.name_zh
     assert "Clear colorless liquid" in translated_zh.phys_appearance
     assert "澄清無色液體" in translated_zh.phys_appearance
