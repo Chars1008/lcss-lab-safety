@@ -136,10 +136,26 @@ def test_english_sds_export_and_bidirectional_translation(tmp_path):
     respx.post("http://localhost:11434/api/generate").mock(
         return_value=httpx.Response(
             200,
-            json={"response": '{"recommended_use": "Solvent and disinfectant", "phys_appearance": "Clear liquid"}'},
+            json={"response": '```json\n{"recommended_use": "Solvent and disinfectant", "phys_appearance": "Clear liquid (澄清液體)"}\n```'},
         )
     )
     llm = LocalLLMService(enabled=True)
-    translated = llm.translate_sds_language(ethanol.sds_payload, target_language="en")
-    assert translated.recommended_use == "Solvent and disinfectant"
-    assert translated.phys_appearance == "Clear liquid"
+    translated_en = llm.translate_sds_language(ethanol.sds_payload, target_language="en")
+    assert translated_en.name_zh == ""
+    assert translated_en.name_en == "Ethanol"
+    assert translated_en.recommended_use == "Solvent and disinfectant"
+    assert translated_en.phys_appearance == "Clear liquid"
+
+    # EN -> ZH: retains English name_en and English reference in translated field
+    sds_en_src = ethanol.sds_payload.model_copy(update={"phys_appearance": "Clear colorless liquid"})
+    respx.post("http://localhost:11434/api/generate").mock(
+        return_value=httpx.Response(
+            200,
+            json={"response": '{"name_zh": "乙醇", "phys_appearance": "澄清無色液體"}'},
+        )
+    )
+    translated_zh = llm.translate_sds_language(sds_en_src, target_language="zh-TW")
+    assert translated_zh.name_en == "Ethanol"
+    assert translated_zh.name_zh == "乙醇"
+    assert "Clear colorless liquid" in translated_zh.phys_appearance
+    assert "澄清無色液體" in translated_zh.phys_appearance

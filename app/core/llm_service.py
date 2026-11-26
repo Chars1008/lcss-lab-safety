@@ -3,11 +3,26 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Optional
 
 import httpx
 
 from app.schemas import CompatibilityIssue, SDSPayload
+
+CJK_PATTERN = re.compile(r"[\u4e00-\u9fff]+")
+
+
+def _contains_cjk(text: str) -> bool:
+    return bool(CJK_PATTERN.search(text))
+
+
+def _strip_cjk(text: str) -> str:
+    """Remove CJK characters and tidy punctuation left behind."""
+    cleaned = CJK_PATTERN.sub("", text)
+    cleaned = re.sub(r"[（）()、；：]+", lambda m: " " if len(m.group(0)) > 1 else "", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" ,;:-")
+    return cleaned or "－"
 
 
 class LocalLLMService:
@@ -18,12 +33,13 @@ class LocalLLMService:
         host: str = "http://localhost:11434",
         model: str = "qwen2.5:7b",
         enabled: bool = False,
-        timeout: float = 45.0,
+        timeout: float = 60.0,
     ) -> None:
         self.host = host.rstrip("/")
         self.model = model
         self.enabled = enabled
         self.timeout = timeout
+        self.last_error: str = ""
 
     def check_connection(self, client: Optional[httpx.Client] = None) -> tuple[bool, list[str]]:
         """Check if Ollama server is reachable and return installed model names."""
@@ -42,12 +58,32 @@ class LocalLLMService:
             if own_client:
                 http.close()
 
+    def _extract_json_dict(self, raw: str) -> Optional[dict[str, Any]]:
+        text = raw.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        try:
+            obj = json.loads(text)
+            return obj if isinstance(obj, dict) else None
+        except ValueError:
+            match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+            if match:
+                try:
+                    obj = json.loads(match.group(0))
+                    return obj if isinstance(obj, dict) else None
+                except ValueError:
+                    return None
+            return None
+
     def _generate_json(
         self,
         prompt: str,
         client: Optional[httpx.Client] = None,
     ) -> Optional[dict[str, Any]]:
+        self.last_error = ""
         if not self.enabled:
+            self.last_error = "Ollama 未啟用"
             return None
         own_client = client is None
         http = client or httpx.Client(timeout=self.timeout)
@@ -62,10 +98,15 @@ class LocalLLMService:
                 },
             )
             if resp.status_code != 200:
+                self.last_error = f"Ollama HTTP {resp.status_code}: {resp.text[:200]}"
                 return None
             raw_response = resp.json().get("response", "")
-            return json.loads(raw_response)
-        except (httpx.HTTPError, ValueError, TypeError):
+            parsed = self._extract_json_dict(raw_response)
+            if parsed is None:
+                self.last_error = "Ollama 回傳內容非有效 JSON 格式"
+            return parsed
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            self.last_error = f"Ollama 連線失敗：{exc}"
             return None
         finally:
             if own_client:
@@ -77,40 +118,99 @@ class LocalLLMService:
         target_language: str = "en",
         client: Optional[httpx.Client] = None,
     ) -> SDSPayload:
-        """Translate SDS fields bidirectionally between Traditional Chinese (zh-TW) and English (en)."""
+        """Translate all SDS text fields bidirectionally between zh-TW and en.
+
+        Rules:
+        - target_language == "zh-TW" (EN -> ZH): translate to Traditional Chinese while
+          retaining English (keeps `name_en` intact, appends English reference if source was English).
+        - target_language == "en" (ZH -> EN): translate to English and remove Chinese
+          (clears `name_zh` and strips residual CJK characters).
+        """
         if not self.enabled:
             return sds
-        lang_label = "English (professional GHS SDS style)" if target_language == "en" else "台灣繁體中文（符合台灣 GHS 專業用語）"
-        prompt = (
-            f"You are a chemical safety expert. Translate the following SDS fields into {lang_label}. "
-            "Return a JSON object with keys: recommended_use, first_aid_ingestion, first_aid_inhalation, "
-            "first_aid_eye, first_aid_skin, first_aid_symptoms, fire_extinguishing_media, "
-            "fire_special_hazards, release_cleanup, handling_notes, storage_notes, "
-            "phys_appearance, materials_to_avoid, tox_chronic.\n"
-            f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
-            f"recommended_use: {sds.recommended_use}\n"
-            f"first_aid_ingestion: {sds.first_aid_ingestion}\n"
-            f"first_aid_inhalation: {sds.first_aid_inhalation}\n"
-            f"first_aid_eye: {sds.first_aid_eye}\n"
-            f"first_aid_skin: {sds.first_aid_skin}\n"
-            f"first_aid_symptoms: {sds.first_aid_symptoms}\n"
-            f"fire_extinguishing_media: {sds.fire_extinguishing_media}\n"
-            f"fire_special_hazards: {sds.fire_special_hazards}\n"
-            f"release_cleanup: {sds.release_cleanup}\n"
-            f"handling_notes: {sds.handling_notes}\n"
-            f"storage_notes: {sds.storage_notes}\n"
-            f"phys_appearance: {sds.phys_appearance}\n"
-            f"materials_to_avoid: {sds.materials_to_avoid}\n"
-            f"tox_chronic: {sds.tox_chronic}"
-        )
-        parsed = self._generate_json(prompt, client=client)
-        if not parsed:
-            return sds
-        updates = {
-            k: v.strip()
-            for k, v in parsed.items()
-            if hasattr(sds, k) and isinstance(v, str) and v.strip()
-        }
+
+        translatable_fields = [
+            "recommended_use",
+            "synonyms",
+            "other_hazards",
+            "first_aid_ingestion",
+            "first_aid_inhalation",
+            "first_aid_eye",
+            "first_aid_skin",
+            "first_aid_symptoms",
+            "first_aid_physician_note",
+            "fire_extinguishing_media",
+            "fire_special_hazards",
+            "fire_procedures",
+            "release_cleanup",
+            "handling_notes",
+            "storage_notes",
+            "ppe_hands",
+            "ppe_respiratory",
+            "phys_appearance",
+            "phys_odor",
+            "phys_melting_point",
+            "phys_boiling_point",
+            "phys_solubility",
+            "materials_to_avoid",
+            "tox_ld50",
+            "tox_chronic",
+            "eco_toxicity",
+            "disposal_methods",
+            "transport_hazard_class",
+        ]
+
+        # Split into 2 compact batches so smaller local models (7B/9B) translate every key reliably
+        batches = [translatable_fields[:14], translatable_fields[14:]]
+        if target_language == "zh-TW":
+            batches[0] = ["name_zh"] + batches[0]
+            instruction = (
+                "You are a Taiwan chemical safety (GHS) translator. Translate EVERY field value below into "
+                "natural Traditional Chinese (繁體中文). Return ONLY a JSON object with the exact same keys."
+            )
+        else:
+            instruction = (
+                "You are a chemical safety (GHS) translator. Translate EVERY field value below into "
+                "clear professional English, removing all Chinese characters. Return ONLY a JSON object with the exact same keys."
+            )
+
+        updates: dict[str, Any] = {}
+        for batch_keys in batches:
+            payload_subset = {k: getattr(sds, k) for k in batch_keys}
+            prompt = (
+                f"{instruction}\n"
+                f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
+                f"Input JSON:\n{json.dumps(payload_subset, ensure_ascii=False)}"
+            )
+            parsed = self._generate_json(prompt, client=client)
+            if not parsed:
+                continue
+            for k in batch_keys:
+                val = parsed.get(k)
+                if not isinstance(val, str) or not val.strip():
+                    continue
+                new_val = val.strip()
+                orig_val = str(getattr(sds, k) or "").strip()
+
+                if target_language == "zh-TW":
+                    # EN -> ZH: retain English reference if original was non-trivial English
+                    if k != "name_zh" and orig_val and orig_val not in ("－", "/") and not _contains_cjk(orig_val):
+                        if orig_val.lower() not in new_val.lower():
+                            new_val = f"{new_val} ({orig_val})"
+                    updates[k] = new_val
+                else:
+                    # ZH -> EN: keep English, remove Chinese
+                    updates[k] = _strip_cjk(new_val) if _contains_cjk(new_val) else new_val
+
+        if target_language == "en":
+            # Remove Chinese name on ZH -> EN while keeping English name intact
+            updates["name_zh"] = ""
+            if not sds.name_en and sds.name_zh:
+                updates["name_en"] = _strip_cjk(sds.name_zh)
+        else:
+            # EN -> ZH: explicitly retain name_en
+            updates["name_en"] = sds.name_en
+
         return sds.model_copy(update=updates)
 
     def translate_sds_fields(

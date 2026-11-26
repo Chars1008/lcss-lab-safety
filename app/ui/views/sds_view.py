@@ -442,14 +442,24 @@ class SDSView(QWidget):
             QMessageBox.information(self, "Ollama 未啟用", "請先於「系統設定」啟用 Local LLM（Ollama）。")
             return
         target_lang = self.lang_combo.currentData() or "zh-TW"
-        self.status_lbl.setText(f"正在透過 Ollama 翻譯為 {target_lang}...")
+        self.status_lbl.setText(f"正在透過 Ollama ({self.llm_service.model}) 翻譯為 {target_lang}...")
         worker = AsyncWorker(self.llm_service.translate_sds_language, payload, target_lang)
         worker.signals.finished.connect(self._on_llm_done)
+        worker.signals.error.connect(self._on_llm_error)
         self.thread_pool.start(worker)
 
     def _on_llm_done(self, updated: SDSPayload) -> None:
         self._populate_form(updated)
-        self.status_lbl.setText("Ollama 潤飾完成（請人工檢視後再儲存或匯出）。")
+        if self.llm_service.last_error:
+            self.status_lbl.setText(f"Ollama 翻譯部分失敗：{self.llm_service.last_error}")
+            QMessageBox.warning(self, "Ollama 翻譯提醒", self.llm_service.last_error)
+        else:
+            self.status_lbl.setText("Ollama 雙語翻譯完成（已套用至表單，請檢視後儲存或匯出）。")
+
+    def _on_llm_error(self, err: str) -> None:
+        msg = err.splitlines()[0]
+        self.status_lbl.setText(f"Ollama 翻譯發生錯誤：{msg}")
+        QMessageBox.warning(self, "Ollama 翻譯失敗", msg)
 
     def _on_enrich_online(self) -> None:
         if self._current_payload is None or self._current_chem_id is None:
