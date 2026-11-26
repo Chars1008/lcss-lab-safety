@@ -208,18 +208,24 @@ class LocalLLMService:
                     )
 
                 try:
-                    resp = http.post(
-                        f"{self.host}/api/generate",
-                        json={
-                            "model": self.model,
-                            "prompt": prompt,
-                            "stream": False,
-                            "think": False,
-                            "keep_alive": "10m",
-                        },
-                    )
+                    payload_json: dict[str, Any] = {
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "think": False,
+                        "keep_alive": "10m",
+                        "options": {"num_ctx": 4096},
+                    }
+                    resp = http.post(f"{self.host}/api/generate", json=payload_json)
+                    if resp.status_code == 500:
+                        # Retry once in safe low-VRAM mode (smaller context, CPU fallback)
+                        payload_json["options"] = {"num_ctx": 2048, "num_gpu": 0}
+                        resp = http.post(f"{self.host}/api/generate", json=payload_json)
                     if resp.status_code != 200:
-                        self.last_error = f"Ollama HTTP {resp.status_code}: {resp.text[:200]}"
+                        self.last_error = (
+                            f"Ollama HTTP {resp.status_code}（模型 {self.model} 執行失敗，"
+                            f"建議於設定改用較輕量模型如 gemma4:e2b）：{resp.text[:160]}"
+                        )
                         break
                     translated = resp.json().get("response", "").strip()
                     if not translated:
