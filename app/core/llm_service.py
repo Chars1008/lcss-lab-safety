@@ -71,6 +71,48 @@ class LocalLLMService:
             if own_client:
                 http.close()
 
+    def translate_sds_language(
+        self,
+        sds: SDSPayload,
+        target_language: str = "en",
+        client: Optional[httpx.Client] = None,
+    ) -> SDSPayload:
+        """Translate SDS fields bidirectionally between Traditional Chinese (zh-TW) and English (en)."""
+        if not self.enabled:
+            return sds
+        lang_label = "English (professional GHS SDS style)" if target_language == "en" else "台灣繁體中文（符合台灣 GHS 專業用語）"
+        prompt = (
+            f"You are a chemical safety expert. Translate the following SDS fields into {lang_label}. "
+            "Return a JSON object with keys: recommended_use, first_aid_ingestion, first_aid_inhalation, "
+            "first_aid_eye, first_aid_skin, first_aid_symptoms, fire_extinguishing_media, "
+            "fire_special_hazards, release_cleanup, handling_notes, storage_notes, "
+            "phys_appearance, materials_to_avoid, tox_chronic.\n"
+            f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
+            f"recommended_use: {sds.recommended_use}\n"
+            f"first_aid_ingestion: {sds.first_aid_ingestion}\n"
+            f"first_aid_inhalation: {sds.first_aid_inhalation}\n"
+            f"first_aid_eye: {sds.first_aid_eye}\n"
+            f"first_aid_skin: {sds.first_aid_skin}\n"
+            f"first_aid_symptoms: {sds.first_aid_symptoms}\n"
+            f"fire_extinguishing_media: {sds.fire_extinguishing_media}\n"
+            f"fire_special_hazards: {sds.fire_special_hazards}\n"
+            f"release_cleanup: {sds.release_cleanup}\n"
+            f"handling_notes: {sds.handling_notes}\n"
+            f"storage_notes: {sds.storage_notes}\n"
+            f"phys_appearance: {sds.phys_appearance}\n"
+            f"materials_to_avoid: {sds.materials_to_avoid}\n"
+            f"tox_chronic: {sds.tox_chronic}"
+        )
+        parsed = self._generate_json(prompt, client=client)
+        if not parsed:
+            return sds
+        updates = {
+            k: v.strip()
+            for k, v in parsed.items()
+            if hasattr(sds, k) and isinstance(v, str) and v.strip()
+        }
+        return sds.model_copy(update=updates)
+
     def translate_sds_fields(
         self,
         sds: SDSPayload,

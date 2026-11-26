@@ -110,3 +110,36 @@ def test_llm_service_translation_and_graceful_degradation():
     updated = enabled_llm.translate_sds_fields(sds)
     assert updated.name_zh == "無水乙醇"
     assert "15分鐘" in updated.section_4_first_aid
+
+
+@respx.mock
+def test_english_sds_export_and_bidirectional_translation(tmp_path):
+    resolver = ChemResolver()
+    ethanol = resolver.resolve_offline("64-17-5")
+    assert ethanol is not None and ethanol.sds_payload is not None
+
+    gen = SDSGenerator()
+    en_pdf = tmp_path / "ethanol_sds_en.pdf"
+    gen.export_sds_pdf(ethanol.sds_payload, en_pdf, language="en")
+    assert en_pdf.exists()
+
+    extracted = PDFParser().extract_text(en_pdf)
+    for expected in (
+        "SAFETY DATA SHEET",
+        "SECTION 1:",
+        "SECTION 16:",
+        "Danger",
+        "H225: Highly flammable liquid and vapour",
+    ):
+        assert expected in extracted
+
+    respx.post("http://localhost:11434/api/generate").mock(
+        return_value=httpx.Response(
+            200,
+            json={"response": '{"recommended_use": "Solvent and disinfectant", "phys_appearance": "Clear liquid"}'},
+        )
+    )
+    llm = LocalLLMService(enabled=True)
+    translated = llm.translate_sds_language(ethanol.sds_payload, target_language="en")
+    assert translated.recommended_use == "Solvent and disinfectant"
+    assert translated.phys_appearance == "Clear liquid"

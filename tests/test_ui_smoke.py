@@ -61,3 +61,7 @@ def test_sds_view_combo_selection_and_reload_preserves_item(qtbot, tmp_path):
     sds_view.reload_chemicals()
     assert sds_view.chem_combo.currentIndex() == dnph_idx
     assert "119-26-6" in sds_view.active_chem_banner.text()
+
+    # Language selector supports zh-TW and en
+    langs = [sds_view.lang_combo.itemData(i) for i in range(sds_view.lang_combo.count())]
+    assert langs == ["zh-TW", "en"]

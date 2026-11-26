@@ -198,6 +198,11 @@ class SDSView(QWidget):
         layout.addWidget(self.tabs, 1)
 
         btn_row = QHBoxLayout()
+        btn_row.addWidget(QLabel("輸出語言："))
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItem("繁體中文 (zh-TW)", "zh-TW")
+        self.lang_combo.addItem("English (en)", "en")
+
         save_btn = QPushButton("儲存 SDS 編輯")
         save_btn.clicked.connect(self._on_save_sds)
         export_sds_btn = QPushButton("匯出完整 16 大項 SDS PDF")
@@ -207,9 +212,10 @@ class SDSView(QWidget):
         export_lbl_btn.clicked.connect(self._on_export_label_pdf)
         import_pdf_btn = QPushButton("歸檔並解析原廠 PDF")
         import_pdf_btn.clicked.connect(self._on_import_supplier_pdf)
-        llm_btn = QPushButton("Ollama 潤飾翻譯")
+        llm_btn = QPushButton("Ollama 中英翻譯")
         llm_btn.clicked.connect(self._on_llm_polish)
 
+        btn_row.addWidget(self.lang_combo)
         for b in (save_btn, export_sds_btn, export_lbl_btn, import_pdf_btn, llm_btn):
             btn_row.addWidget(b)
         layout.addLayout(btn_row)
@@ -377,15 +383,16 @@ class SDSView(QWidget):
         payload = self._collect_payload()
         if payload is None:
             return
+        lang = self.lang_combo.currentData() or "zh-TW"
         EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        default_path = EXPORTS_DIR / f"SDS_{payload.cas_number}.pdf"
+        default_path = EXPORTS_DIR / f"SDS_{payload.cas_number}_{lang}.pdf"
         file_path, _ = QFileDialog.getSaveFileName(
             self, "匯出 SDS PDF", str(default_path), "PDF Files (*.pdf)"
         )
         if not file_path:
             return
-        out = self.sds_gen.export_sds_pdf(payload, file_path)
-        self.status_lbl.setText(f"已匯出完整 16 大項 SDS PDF：{out}")
+        out = self.sds_gen.export_sds_pdf(payload, file_path, language=lang)
+        self.status_lbl.setText(f"已匯出完整 16 大項 SDS PDF ({lang})：{out}")
         QMessageBox.information(self, "匯出成功", f"已儲存至：\n{out}")
 
     def _on_export_label_pdf(self) -> None:
@@ -434,8 +441,9 @@ class SDSView(QWidget):
         if not self.llm_service.enabled:
             QMessageBox.information(self, "Ollama 未啟用", "請先於「系統設定」啟用 Local LLM（Ollama）。")
             return
-        self.status_lbl.setText("正在透過 Ollama 進行繁體中文潤飾...")
-        worker = AsyncWorker(self.llm_service.translate_sds_fields, payload)
+        target_lang = self.lang_combo.currentData() or "zh-TW"
+        self.status_lbl.setText(f"正在透過 Ollama 翻譯為 {target_lang}...")
+        worker = AsyncWorker(self.llm_service.translate_sds_language, payload, target_lang)
         worker.signals.finished.connect(self._on_llm_done)
         self.thread_pool.start(worker)
 

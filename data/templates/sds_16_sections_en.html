@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  body {
+    font-family: "Segoe UI", "Calibri", "Arial", sans-serif;
+    font-size: 9.5pt;
+    color: #111827;
+    margin: 14px 18px;
+    line-height: 1.4;
+  }
+  .doc-title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 0 0 4px 0;
+    letter-spacing: 1px;
+  }
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.5pt;
+    margin-bottom: 6px;
+    color: #374151;
+  }
+  .disclaimer-top {
+    border: 1px solid #b91c1c;
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 4px 8px;
+    font-size: 8pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  .sec-title {
+    font-size: 10.5pt;
+    font-weight: bold;
+    margin: 12px 0 3px 0;
+    color: #000000;
+  }
+  table.sds-box {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    border: 1.2px solid #111827;
+  }
+  table.sds-box th, table.sds-box td {
+    border: 1px solid #111827;
+    padding: 4px 7px;
+    vertical-align: top;
+    text-align: left;
+  }
+  table.sds-box th {
+    width: 26%;
+    font-weight: bold;
+    background: #ffffff;
+  }
+  table.inner-grid {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0;
+  }
+  table.inner-grid th, table.inner-grid td {
+    border: 1px solid #111827;
+    padding: 3px 5px;
+    text-align: center;
+    font-size: 8.8pt;
+  }
+  table.prop-grid th {
+    width: 22%;
+    background: #ffffff;
+  }
+  table.prop-grid td {
+    width: 28%;
+  }
+  .sub-block { margin-bottom: 4px; }
+  .sub-label { font-weight: bold; }
+  .pre-line { white-space: pre-line; }
+  .pictograms img { width: 52px; height: 52px; margin-right: 8px; }
+  .signal-word { font-weight: bold; font-size: 10.5pt; color: #b91c1c; }
+  .footer-note {
+    margin-top: 10px;
+    font-size: 8pt;
+    color: #1f2937;
+    line-height: 1.45;
+    border-top: 1px solid #6b7280;
+    padding-top: 6px;
+  }
+</style>
+</head>
+<body>
+  <div class="doc-title">SAFETY DATA SHEET</div>
+  <div class="doc-meta">
+    <span>Control No.: {{ sds.epa_control_no }}</span>
+    <span>CAS No.: {{ sds.cas_number }} | Revision Date: {{ sds.prepare_date or generated_at_str[:10] }}</span>
+  </div>
+  <div class="disclaimer-top">
+    Internal Reference Edition (Data Source: {{ sds.data_source }} / PubChem / Taiwan GHS. Refer to official supplier SDS for regulatory compliance.)
+  </div>
+
+  <!-- Section 1 -->
+  <div class="sec-title">SECTION 1: Identification of the substance/mixture and of the company/undertaking</div>
+  <table class="sds-box">
+    <tr><th>Product Name:</th><td>{{ sds.name_en or sds.name_zh }}{% if sds.name_zh and sds.name_en %} ({{ sds.name_zh }}){% endif %}</td></tr>
+    <tr><th>Other Means of Identification:</th><td>{{ sds.other_names }}</td></tr>
+    <tr><th>Recommended Use & Restrictions:</th><td>{{ sds.recommended_use }}</td></tr>
+    <tr><th>Supplier Name & Address:</th><td>{{ sds.supplier_info or "Laboratory Internal Record" }}</td></tr>
+    <tr><th>Emergency Telephone:</th><td>{{ sds.emergency_phone }}</td></tr>
+  </table>
+
+  <!-- Section 2 -->
+  <div class="sec-title">SECTION 2: Hazards identification</div>
+  <table class="sds-box">
+    <tr>
+      <th>GHS Classification:</th>
+      <td>
+        {% if sds.hazard_classifications %}
+          {% for cls in sds.hazard_classifications %}<div>{{ loop.index }}. {{ cls }}</div>{% endfor %}
+        {% else %}
+          Classified by GHS Hazard Statements ({{ sds.h_codes | join(", ") or "None" }})
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>GHS Label Elements:</th>
+      <td>
+        <div class="sub-block"><span class="sub-label">Hazard Pictograms:</span>
+          <span class="pictograms">
+            {% for svg_uri in pictogram_uris %}<img src="{{ svg_uri }}" alt="GHS" />{% else %}No pictogram required{% endfor %}
+          </span>
+        </div>
+        <div class="sub-block"><span class="sub-label">Signal Word:</span>
+          <span class="signal-word">{{ signal_word_en }}</span>
+        </div>
+        <div class="sub-block"><span class="sub-label">Hazard Statements:</span>
+          {% for line in h_statements_en %}<div>{{ loop.index }}. {{ line }}</div>{% else %}<div>None</div>{% endfor %}
+        </div>
+        <div class="sub-block"><span class="sub-label">Precautionary Statements:</span>
+          {% for line in p_statements_en %}<div>{{ loop.index }}. {{ line }}</div>{% else %}<div>None</div>{% endfor %}
+        </div>
+      </td>
+    </tr>
+    <tr><th>Other Hazards:</th><td>{{ sds.other_hazards }}</td></tr>
+  </table>
+
+  <!-- Section 3 -->
+  <div class="sec-title">SECTION 3: Composition/information on ingredients</div>
+  <table class="sds-box">
+    <tr><th>Substance Name:</th><td>{{ sds.name_en or sds.name_zh }}</td></tr>
+    <tr><th>Synonyms:</th><td>{{ sds.synonyms }}</td></tr>
+    <tr><th>CAS No.:</th><td>{{ sds.cas_number }}{% if sds.formula %} (Formula: {{ sds.formula }}, MW: {{ sds.molecular_weight or "-" }}){% endif %}</td></tr>
+    <tr><th>Concentration (%):</th><td>{{ sds.concentration_pct }}</td></tr>
+  </table>
+
+  <!-- Section 4 -->
+  <div class="sec-title">SECTION 4: First aid measures</div>
+  <table class="sds-box">
+    <tr>
+      <td colspan="2">
+        <div class="sub-block"><span class="sub-label">Ingestion:</span> <span class="pre-line">{{ sds.first_aid_ingestion }}</span></div>
+        <div class="sub-block"><span class="sub-label">Inhalation:</span> <span class="pre-line">{{ sds.first_aid_inhalation }}</span></div>
+        <div class="sub-block"><span class="sub-label">Eye Contact:</span> <span class="pre-line">{{ sds.first_aid_eye }}</span></div>
+        <div class="sub-block"><span class="sub-label">Skin Contact:</span> <span class="pre-line">{{ sds.first_aid_skin }}</span></div>
+      </td>
+    </tr>
+    <tr><td colspan="2"><span class="sub-label">Most Important Symptoms & Effects:</span><div class="pre-line">{{ sds.first_aid_symptoms }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">Protection of First-Aiders:</span><div>{{ sds.first_aid_rescuer_ppe }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">Notes to Physician:</span><div class="pre-line">{{ sds.first_aid_physician_note }}</div></td></tr>
+  </table>
+
+  <!-- Section 5 -->
+  <div class="sec-title">SECTION 5: Firefighting measures</div>
+  <table class="sds-box">
+    <tr><th>Suitable Extinguishing Media:</th><td>{{ sds.fire_extinguishing_media }}</td></tr>
+    <tr><th>Specific Hazards:</th><td class="pre-line">{{ sds.fire_special_hazards }}</td></tr>
+    <tr><th>Special Firefighting Procedures:</th><td class="pre-line">{{ sds.fire_procedures }}</td></tr>
+    <tr><th>Protective Equipment for Firefighters:</th><td class="pre-line">{{ sds.fire_ppe }}</td></tr>
+  </table>
+
+  <!-- Section 6 -->
+  <div class="sec-title">SECTION 6: Accidental release measures</div>
+  <table class="sds-box">
+    <tr><th>Personal Precautions:</th><td class="pre-line">{{ sds.release_personal }}</td></tr>
+    <tr><th>Environmental Precautions:</th><td class="pre-line">{{ sds.release_env }}</td></tr>
+    <tr><th>Methods for Containment & Cleaning Up:</th><td class="pre-line">{{ sds.release_cleanup }}</td></tr>
+  </table>
+
+  <!-- Section 7 -->
+  <div class="sec-title">SECTION 7: Handling and storage</div>
+  <table class="sds-box">
+    <tr><th>Handling:</th><td class="pre-line">{{ sds.handling_notes }}</td></tr>
+    <tr><th>Storage:</th><td class="pre-line">{{ sds.storage_notes }}</td></tr>
+  </table>
+
+  <!-- Section 8 -->
+  <div class="sec-title">SECTION 8: Exposure controls/personal protection</div>
+  <table class="sds-box">
+    <tr><td colspan="2"><span class="sub-label">Engineering Controls:</span><div class="pre-line">{{ sds.eng_controls }}</div></td></tr>
+    <tr>
+      <td colspan="2">
+        <div class="sub-label" style="text-align:center;">Occupational Exposure Limits</div>
+        <table class="inner-grid">
+          <tr><th>TWA (8h)</th><th>STEL</th><th>CEILING</th><th>BEIs</th></tr>
+          <tr><td>{{ sds.twa }}</td><td>{{ sds.stel }}</td><td>{{ sds.ceiling }}</td><td>{{ sds.beis }}</td></tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="sub-label">Personal Protective Equipment:</div>
+        <div><b>Hand Protection:</b> {{ sds.ppe_hands }}</div>
+        <div><b>Skin/Body Protection:</b> {{ sds.ppe_skin_body }}</div>
+        <div><b>Respiratory Protection:</b> {{ sds.ppe_respiratory }}</div>
+        <div><b>Eye Protection:</b> {{ sds.ppe_eyes }}</div>
+      </td>
+    </tr>
+    <tr><td colspan="2"><span class="sub-label">Hygiene Measures:</span><div class="pre-line">{{ sds.hygiene_measures }}</div></td></tr>
+  </table>
+
+  <!-- Section 9 -->
+  <div class="sec-title">SECTION 9: Physical and chemical properties</div>
+  <table class="sds-box prop-grid">
+    <tr><th>Appearance:</th><td>{{ sds.phys_appearance }}</td><th>Odor:</th><td>{{ sds.phys_odor }}</td></tr>
+    <tr><th>Odor Threshold:</th><td>{{ sds.phys_odor_threshold }}</td><th>Melting Point:</th><td>{{ sds.phys_melting_point }}</td></tr>
+    <tr><th>pH:</th><td>{{ sds.phys_ph }}</td><th>Boiling Point:</th><td>{{ sds.phys_boiling_point }}</td></tr>
+    <tr><th>Flammability:</th><td>{{ sds.phys_flammability }}</td><th>Flash Point:</th><td>{{ sds.phys_flash_point }}</td></tr>
+    <tr><th>Decomposition Temp.:</th><td>{{ sds.phys_decomp_temp }}</td><th>Test Method:</th><td>{{ sds.phys_flash_test_method }}</td></tr>
+    <tr><th>Autoignition Temp.:</th><td>{{ sds.phys_autoignition_temp }}</td><th>Explosion Limits:</th><td>{{ sds.phys_explosion_limits }}</td></tr>
+    <tr><th>Vapor Pressure:</th><td>{{ sds.phys_vapor_pressure }}</td><th>Vapor Density:</th><td>{{ sds.phys_vapor_density }}</td></tr>
+    <tr><th>Density:</th><td>{{ sds.phys_density }}</td><th>Solubility:</th><td>{{ sds.phys_solubility }}</td></tr>
+    <tr><th>Partition Coeff. (log Kow):</th><td>{{ sds.phys_log_kow }}</td><th>Evaporation Rate:</th><td>{{ sds.phys_evap_rate }}</td></tr>
+  </table>
+
+  <!-- Section 10 -->
+  <div class="sec-title">SECTION 10: Stability and reactivity</div>
+  <table class="sds-box">
+    <tr><th>Chemical Stability:</th><td>{{ sds.stability }}</td></tr>
+    <tr><th>Possibility of Hazardous Reactions:</th><td class="pre-line">{{ sds.hazardous_reactions }}</td></tr>
+    <tr><th>Conditions to Avoid:</th><td>{{ sds.conditions_to_avoid }}</td></tr>
+    <tr><th>Incompatible Materials:</th><td class="pre-line">{{ sds.materials_to_avoid }}</td></tr>
+    <tr><th>Hazardous Decomposition Products:</th><td>{{ sds.decomp_products }}</td></tr>
+  </table>
+
+  <!-- Section 11 -->
+  <div class="sec-title">SECTION 11: Toxicological information</div>
+  <table class="sds-box">
+    <tr><th>Routes of Exposure:</th><td>{{ sds.tox_routes }}</td></tr>
+    <tr><th>Symptoms:</th><td>{{ sds.tox_symptoms }}</td></tr>
+    <tr><th>Acute Toxicity (LD50 / LC50):</th><td>LD50: {{ sds.tox_ld50 }} | LC50: {{ sds.tox_lc50 }}</td></tr>
+    <tr><th>Chronic / Long-Term Effects:</th><td class="pre-line">{{ sds.tox_chronic }}</td></tr>
+  </table>
+
+  <!-- Section 12 -->
+  <div class="sec-title">SECTION 12: Ecological information</div>
+  <table class="sds-box">
+    <tr><th>Ecotoxicity:</th><td class="pre-line">{{ sds.eco_toxicity }}</td></tr>
+    <tr><th>Persistence & Degradability:</th><td class="pre-line">{{ sds.eco_persistence }}</td></tr>
+    <tr><th>Bioaccumulative Potential:</th><td>{{ sds.eco_bioaccumulation }}</td></tr>
+    <tr><th>Mobility in Soil:</th><td>{{ sds.eco_mobility }}</td></tr>
+  </table>
+
+  <!-- Section 13 -->
+  <div class="sec-title">SECTION 13: Disposal considerations</div>
+  <table class="sds-box">
+    <tr><th>Waste Disposal Methods:</th><td class="pre-line">{{ sds.disposal_methods }}</td></tr>
+  </table>
+
+  <!-- Section 14 -->
+  <div class="sec-title">SECTION 14: Transport information</div>
+  <table class="sds-box">
+    <tr><th>UN Number:</th><td>{{ sds.un_number }}</td></tr>
+    <tr><th>UN Proper Shipping Name:</th><td>{{ sds.un_shipping_name }}</td></tr>
+    <tr><th>Transport Hazard Class:</th><td>{{ sds.transport_hazard_class }}</td></tr>
+    <tr><th>Packing Group:</th><td>{{ sds.packing_group }}</td></tr>
+    <tr><th>Marine Pollutant:</th><td>{{ sds.marine_pollutant }}</td></tr>
+    <tr><th>ERG Guide Number:</th><td>{{ sds.erg_guide }}</td></tr>
+  </table>
+
+  <!-- Section 15 -->
+  <div class="sec-title">SECTION 15: Regulatory information</div>
+  <table class="sds-box">
+    <tr><td class="pre-line">{{ sds.regulations }}</td></tr>
+  </table>
+
+  <!-- Section 16 -->
+  <div class="sec-title">SECTION 16: Other information</div>
+  <table class="sds-box">
+    <tr><th>Prepared By:</th><td>{{ sds.preparer_org }} ({{ sds.preparer_name }})</td></tr>
+    <tr><th>Prepared Date:</th><td>{{ sds.prepare_date or generated_at_str[:10] }}</td></tr>
+    <tr><th>Note:</th><td>"-" indicates data currently unavailable; "/" indicates not applicable.</td></tr>
+  </table>
+
+  <div class="footer-note">
+    Generated by Ginsi Laboratory Chemical Safety System (GLCSS) at {{ generated_at_str }}. Internal reference only.
+  </div>
+</body>
+</html>
