@@ -128,6 +128,38 @@ class LCSSRepository:
         self.session.refresh(loc)
         return loc
 
+    def update_location(
+        self,
+        location_id: int,
+        lab_name: str,
+        cabinet_name: str,
+        shelf_name: str,
+        cabinet_type: str,
+        notes: str = "",
+    ) -> Optional[StorageLocation]:
+        loc = self.get_location(location_id)
+        if loc is None:
+            return None
+        loc.lab_name = lab_name
+        loc.cabinet_name = cabinet_name
+        loc.shelf_name = shelf_name
+        loc.cabinet_type = cabinet_type
+        loc.notes = notes
+        self.session.commit()
+        self.session.refresh(loc)
+        return loc
+
+    def delete_location(self, location_id: int) -> bool:
+        loc = self.get_location(location_id)
+        if loc is None:
+            return False
+        # Detach any inventory items referencing this location before deleting
+        for item in list(loc.items):
+            item.location_id = None
+        self.session.delete(loc)
+        self.session.commit()
+        return True
+
     # ------------------------------------------------------------------
     # Inventory Items & Logs
     # ------------------------------------------------------------------

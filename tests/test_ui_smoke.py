@@ -65,3 +65,23 @@ def test_sds_view_combo_selection_and_reload_preserves_item(qtbot, tmp_path):
     # Language selector supports zh-TW and en
     langs = [sds_view.lang_combo.itemData(i) for i in range(sds_view.lang_combo.count())]
     assert langs == ["zh-TW", "en"]
+
+
+def test_settings_view_ollama_combo_and_location_table(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(AppSettings, "save", lambda self, path=None: tmp_path / "settings.json")
+    settings = AppSettings(initialized=True, db_path=str(tmp_path / "settings_ui.db"))
+    db = init_db(settings.db_path)
+    with db.get_session() as session:
+        LCSSRepository(session).create_location("化學室", "酸鹼櫃", "第 1 層", "CORROSIVE")
+
+    win = MainWindow(db, settings)
+    qtbot.addWidget(win)
+    sv = win.settings_view
+    sv.reload_locations_table()
+    assert sv.loc_table.rowCount() == 1
+
+    # Ollama combo has default models and updates llm_service immediately on selection
+    assert sv.ollama_model_combo.count() >= 4
+    sv.ollama_model_combo.setCurrentText("gemma2:9b")
+    assert win.llm_service.model == "gemma2:9b"
+    assert settings.ollama_model == "gemma2:9b"

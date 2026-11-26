@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
             self.settings,
             self.llm_service,
             on_locations_changed=self.inventory_view.reload_locations,
+            on_data_imported=self._refresh_all_views,
         )
 
         for view in (
@@ -104,6 +105,13 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.stack, 1)
         self.setCentralWidget(central)
 
+    def _refresh_all_views(self) -> None:
+        self.dashboard_view.refresh()
+        self.inventory_view.reload_locations()
+        self.inventory_view.refresh_table()
+        self.compatibility_view.reload_chemicals()
+        self.sds_view.reload_chemicals()
+
     def _on_tab_changed(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
         if index == 0:
@@ -115,3 +123,5 @@ class MainWindow(QMainWindow):
             self.compatibility_view.reload_chemicals()
         elif index == 3:
             self.sds_view.reload_chemicals()
+        elif index == 4:
+            self.settings_view.reload_locations_table()
