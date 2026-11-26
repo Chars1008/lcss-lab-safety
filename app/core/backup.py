@@ -15,46 +15,39 @@ from app.schemas import ControlLevel, GroupSource, ResolvedChemical, SDSPayload
 
 
 def export_inventory_csv(db: DatabaseManager, output_path: Path | str) -> Path:
-    """Export all chemicals & inventory items to UTF-8 BOM CSV (Excel friendly)."""
+    """Export registered chemicals & safety placement list to UTF-8 BOM CSV."""
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     with db.get_session() as session:
         repo = LCSSRepository(session)
-        items = repo.list_inventory_items()
+        items = repo.list_inventory_items(status="IN_STOCK")
         chems = repo.search_chemicals()
 
     with out.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "紀錄類型", "條碼", "CAS No.", "中文品名", "英文品名", "分子式",
-            "試劑類型", "容量", "剩餘量", "單位", "存放位置", "有效期限", "狀態",
+            "CAS No.", "中文品名", "英文品名", "分子式", "警示語",
+            "GHS 圖示", "H 代碼", "反應基團", "管制等級", "配置櫃位",
         ])
-        seen_chem_ids: set[int] = set()
+        loc_by_chem: dict[int, list[str]] = {}
         for it in items:
-            c = it.chemical
-            if c:
-                seen_chem_ids.add(c.id)
-            writer.writerow([
-                "庫存品項",
-                it.barcode,
-                c.cas_number if c else "",
-                c.name_zh if c else "",
-                c.name_en if c else "",
-                c.formula if c else "",
-                it.item_type,
-                it.capacity,
-                it.current_quantity,
-                it.unit,
-                it.location.display_name if it.location else "",
-                it.expiry_date.isoformat() if it.expiry_date else "",
-                it.status,
-            ])
+            if it.location:
+                loc_by_chem.setdefault(it.chemical_id, []).append(it.location.display_name)
+
         for c in chems:
-            if c.id not in seen_chem_ids:
-                writer.writerow([
-                    "藥品主檔(無庫存)", "", c.cas_number, c.name_zh, c.name_en, c.formula,
-                    "", "", "", "", "", "", "",
-                ])
+            locs = "；".join(dict.fromkeys(loc_by_chem.get(c.id, []))) or "未指定櫃位"
+            writer.writerow([
+                c.cas_number,
+                c.name_zh,
+                c.name_en,
+                c.formula,
+                c.signal_word or "無",
+                ", ".join(c.ghs_pictograms),
+                ", ".join(c.h_codes),
+                ", ".join(c.reactive_groups),
+                c.control_level,
+                locs,
+            ])
     return out
 
 

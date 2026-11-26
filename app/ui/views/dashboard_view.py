@@ -1,4 +1,4 @@
-"""Dashboard view: overview of expiring chemicals, low stock, and cabinet conflicts."""
+"""Dashboard view: chemical safety overview, control-level summary, and cabinet conflict alerts."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from app.config import AppSettings
 from app.core.compatibility import CompatibilityEngine
 from app.db.database import DatabaseManager
 from app.db.repository import LCSSRepository
-from app.schemas import CompatibilityLevel, ItemStatus
+from app.schemas import CompatibilityLevel, ControlLevel
 
 
 class StatCard(QFrame):
@@ -46,7 +46,7 @@ class StatCard(QFrame):
 
 
 class DashboardView(QWidget):
-    """Home dashboard showing lab safety KPIs and alerts."""
+    """Home dashboard showing chemical safety KPIs and storage compatibility alerts."""
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class DashboardView(QWidget):
 
         layout = QVBoxLayout(self)
         header = QHBoxLayout()
-        title = QLabel("安全總覽儀表板")
+        title = QLabel("安全檢查與指引總覽")
         title.setStyleSheet("font-size: 16pt; font-weight: bold;")
         self.refresh_btn = QPushButton("重新整理")
         self.refresh_btn.clicked.connect(self.refresh)
@@ -72,17 +72,17 @@ class DashboardView(QWidget):
         layout.addLayout(header)
 
         cards_row = QHBoxLayout()
-        self.card_total = StatCard("在庫總瓶數", "#1e3a8a")
-        self.card_expiring = StatCard("即期 / 已過期 (30天內)", "#d97706")
-        self.card_low = StatCard("低庫存警示", "#2563eb")
-        self.card_conflicts = StatCard("櫃位不相容衝突", "#dc2626")
-        for c in (self.card_total, self.card_expiring, self.card_low, self.card_conflicts):
+        self.card_total = StatCard("已建檔化學品數", "#1e3a8a")
+        self.card_controlled = StatCard("教師專管 / 禁用藥品", "#d97706")
+        self.card_locations = StatCard("已設定安全櫃位數", "#0f766e")
+        self.card_conflicts = StatCard("櫃位安全衝突警示", "#dc2626")
+        for c in (self.card_total, self.card_controlled, self.card_locations, self.card_conflicts):
             cards_row.addWidget(c)
         layout.addLayout(cards_row)
 
-        layout.addWidget(QLabel("警示明細（即期／低庫存／櫃位衝突）："))
+        layout.addWidget(QLabel("安全檢查警示明細（櫃位不相容衝突／櫃體屬性不符／管制藥品指引）："))
         self.alert_table = QTableWidget(0, 4)
-        self.alert_table.setHorizontalHeaderLabels(["警示類型", "藥品／櫃位", "詳細說明", "建議處置"])
+        self.alert_table.setHorizontalHeaderLabels(["警示類型", "藥品／櫃位", "詳細說明", "安全指引建議"])
         self.alert_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.alert_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.alert_table)
@@ -90,16 +90,34 @@ class DashboardView(QWidget):
         self.refresh()
 
     def refresh(self) -> None:
+        rows: list[tuple[str, str, str, str]] = []
         with self.db.get_session() as session:
             repo = LCSSRepository(session)
-            in_stock = repo.list_inventory_items(status=ItemStatus.IN_STOCK.value)
-            expiring = repo.list_expiring_items(within_days=self.settings.expiry_warning_days)
-            low_stock = repo.list_low_stock_items(threshold_ratio=self.settings.low_stock_threshold_ratio)
+            chemicals = repo.search_chemicals()
             locations = repo.list_locations()
 
-            conflicts: list[tuple[str, str, str]] = []
+            controlled = [
+                c for c in chemicals
+                if c.control_level in (ControlLevel.TEACHER_ONLY.value, ControlLevel.PROHIBITED.value)
+            ]
+
+            conflict_count = 0
             for loc in locations:
                 items = repo.get_items_in_location(loc.id)
+                for it in items:
+                    if not it.chemical:
+                        continue
+                    groups, _, _ = self.compat_engine.classify_reactive_groups(
+                        it.chemical.cas_number, it.chemical.smiles, it.chemical.reactive_groups
+                    )
+                    cab_res = self.compat_engine.check_cabinet_suitability(
+                        it.chemical.ghs_pictograms, groups, loc.cabinet_type
+                    )
+                    if not cab_res.compatible:
+                        conflict_count += 1
+                        name = it.chemical.name_zh or it.chemical.name_en
+                        rows.append(("櫃體屬性不符", f"{loc.display_name} ({name})", cab_res.message_zh, "請移至符合屬性之藥品櫃"))
+
                 if len(items) < 2:
                     continue
                 chems = [
@@ -115,22 +133,27 @@ class DashboardView(QWidget):
                 ]
                 for issue in self.compat_engine.check_matrix(chems):
                     if issue.level == CompatibilityLevel.INCOMPATIBLE:
-                        conflicts.append((loc.display_name, f"{issue.chem_a_name} × {issue.chem_b_name}", issue.summary_zh))
+                        conflict_count += 1
+                        rows.append((
+                            "櫃位不相容",
+                            f"{loc.display_name} ({issue.chem_a_name} × {issue.chem_b_name})",
+                            issue.summary_zh,
+                            "禁止混放，請立即分櫃隔離",
+                        ))
 
-        self.card_total.set_value(len(in_stock))
-        self.card_expiring.set_value(len(expiring))
-        self.card_low.set_value(len(low_stock))
-        self.card_conflicts.set_value(len(conflicts))
+            for c in controlled:
+                label = "禁用藥品" if c.control_level == ControlLevel.PROHIBITED.value else "教師專管"
+                rows.append((
+                    label,
+                    f"{c.name_zh or c.name_en} ({c.cas_number})",
+                    "具高毒、致癌、爆炸或法規管制風險",
+                    "須上鎖專櫃管理並於操作前確認安全防護",
+                ))
 
-        rows: list[tuple[str, str, str, str]] = []
-        for loc_name, pair, summary in conflicts:
-            rows.append(("櫃位不相容", f"{loc_name} ({pair})", summary, "請立即分櫃隔離存放"))
-        for it in expiring:
-            name = it.chemical.name_zh or it.chemical.name_en if it.chemical else it.barcode
-            rows.append(("效期警示", f"{name} [{it.barcode}]", f"有效期限：{it.expiry_date}", "請確認品質或安排報廢"))
-        for it in low_stock:
-            name = it.chemical.name_zh or it.chemical.name_en if it.chemical else it.barcode
-            rows.append(("低庫存", f"{name} [{it.barcode}]", f"剩餘 {it.current_quantity}/{it.capacity} {it.unit}", "評估請購補充"))
+        self.card_total.set_value(len(chemicals))
+        self.card_controlled.set_value(len(controlled))
+        self.card_locations.set_value(len(locations))
+        self.card_conflicts.set_value(conflict_count)
 
         self.alert_table.setRowCount(len(rows))
         for r_idx, row in enumerate(rows):

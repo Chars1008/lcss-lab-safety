@@ -67,8 +67,8 @@ class MainWindow(QMainWindow):
             "QListWidget::item:selected { background: #2563eb; font-weight: bold; }"
         )
         self.nav_list.addItems([
-            "📊 安全總覽儀表板",
-            "🧪 藥品庫存與入庫",
+            "📊 安全檢查與指引總覽",
+            "🧪 藥品登錄與櫃位檢查",
             "⚗️ 相容性矩陣檢查",
             "📄 SDS 與瓶身標籤",
             "⚙️ 系統與 Ollama 設定",

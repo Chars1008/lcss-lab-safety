@@ -191,11 +191,11 @@ class SetupWizard(QWizard):
             if self.page_cabinets.chk_demo.isChecked():
                 resolver = ChemResolver()
                 demos = [
-                    ("7647-01-0", CabinetType.CORROSIVE.value, 500.0),
-                    ("64-17-5", CabinetType.FLAMMABLE.value, 1000.0),
-                    ("7681-52-9", CabinetType.GENERAL.value, 500.0),
+                    ("7647-01-0", CabinetType.CORROSIVE.value),
+                    ("64-17-5", CabinetType.FLAMMABLE.value),
+                    ("7681-52-9", CabinetType.GENERAL.value),
                 ]
-                for cas, target_type, cap in demos:
+                for cas, target_type in demos:
                     resolved = resolver.resolve_offline(cas)
                     if resolved:
                         chem = repo.upsert_chemical(resolved)
@@ -203,8 +203,6 @@ class SetupWizard(QWizard):
                         repo.check_in_item(
                             chemical_id=chem.id,
                             location_id=loc_id,
-                            capacity=cap,
-                            unit="mL",
-                            brand="示範藥品",
-                            expiry_date=date.today() + timedelta(days=365),
+                            capacity=1.0,
+                            unit="項",
                         )
