@@ -3,77 +3,318 @@
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; font-size: 10pt; color: #1f2937; margin: 16px; }
-  .banner { border: 1.5px solid #b91c1c; background: #fef2f2; color: #991b1b; padding: 8px 12px; font-size: 9pt; font-weight: bold; margin-bottom: 12px; }
-  h1 { font-size: 16pt; margin: 0 0 4px 0; color: #111827; }
-  .subtitle { font-size: 10pt; color: #4b5563; margin-bottom: 12px; }
-  h2 { font-size: 11.5pt; background: #1e3a8a; color: #ffffff; padding: 5px 8px; margin: 14px 0 6px 0; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; vertical-align: top; }
-  th { background: #f1f5f9; width: 24%; font-weight: bold; }
-  .pictograms img { width: 54px; height: 54px; margin-right: 6px; }
-  .signal { display: inline-block; padding: 2px 8px; background: #dc2626; color: #fff; font-weight: bold; border-radius: 3px; }
-  .footer { margin-top: 18px; border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 8.5pt; color: #475569; }
+  body {
+    font-family: "DFKai-SB", "BiauKai", "Microsoft JhengHei", "Noto Sans TC", serif;
+    font-size: 9.5pt;
+    color: #111827;
+    margin: 14px 18px;
+    line-height: 1.4;
+  }
+  .doc-title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 0 0 4px 0;
+    letter-spacing: 2px;
+  }
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.5pt;
+    margin-bottom: 6px;
+    color: #374151;
+  }
+  .disclaimer-top {
+    border: 1px solid #b91c1c;
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 4px 8px;
+    font-size: 8pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  .sec-title {
+    font-size: 10.5pt;
+    font-weight: bold;
+    margin: 12px 0 3px 0;
+    color: #000000;
+  }
+  table.sds-box {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    border: 1.2px solid #111827;
+  }
+  table.sds-box th, table.sds-box td {
+    border: 1px solid #111827;
+    padding: 4px 7px;
+    vertical-align: top;
+    text-align: left;
+  }
+  table.sds-box th {
+    width: 24%;
+    font-weight: bold;
+    background: #ffffff;
+  }
+  table.inner-grid {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0;
+  }
+  table.inner-grid th, table.inner-grid td {
+    border: 1px solid #111827;
+    padding: 3px 5px;
+    text-align: center;
+    font-size: 8.8pt;
+  }
+  table.prop-grid th {
+    width: 22%;
+    background: #ffffff;
+  }
+  table.prop-grid td {
+    width: 28%;
+  }
+  .sub-block { margin-bottom: 4px; }
+  .sub-label { font-weight: bold; }
+  .pre-line { white-space: pre-line; }
+  .pictograms img { width: 52px; height: 52px; margin-right: 8px; }
+  .signal-word { font-weight: bold; font-size: 10.5pt; color: #b91c1c; }
+  .footer-note {
+    margin-top: 10px;
+    font-size: 8pt;
+    color: #1f2937;
+    line-height: 1.45;
+    border-top: 1px solid #6b7280;
+    padding-top: 6px;
+  }
 </style>
 </head>
 <body>
-  <div class="banner">
+  <div class="doc-title">安全資料表</div>
+  <div class="doc-meta">
+    <span>列管編號：{{ sds.epa_control_no }}</span>
+    <span>CAS No.：{{ sds.cas_number }} ｜ 製表日期：{{ sds.prepare_date or generated_at_str[:10] }}</span>
+  </div>
+  <div class="disclaimer-top">
     系統彙整內部參考版（資料來源：{{ sds.data_source }} / PubChem / 台灣 GHS，正式法規依據請以供應商原廠 SDS 為準）
   </div>
-  <h1>安全資料表（Safety Data Sheet, SDS）</h1>
-  <div class="subtitle">{{ sds.name_zh or sds.name_en }}（CAS: {{ sds.cas_number }}）</div>
 
-  <h2>1. 化學品與廠商資料</h2>
-  <table>
-    <tr><th>化學品中文名稱</th><td>{{ sds.name_zh or "—" }}</td></tr>
-    <tr><th>化學品英文名稱</th><td>{{ sds.name_en or "—" }}</td></tr>
-    <tr><th>建議用途</th><td>{{ sds.recommended_use }}</td></tr>
-    <tr><th>製造商/供應商資料</th><td>{{ sds.supplier_info or "實驗室自建／待補充" }}</td></tr>
-    <tr><th>緊急聯絡電話</th><td>{{ sds.emergency_phone }}</td></tr>
+  <!-- 一、化學品與廠商資料 -->
+  <div class="sec-title">一、化學品與廠商資料</div>
+  <table class="sds-box">
+    <tr><th>化學品名稱：</th><td>{{ sds.name_zh }}{% if sds.name_en %} ({{ sds.name_en }}){% endif %}</td></tr>
+    <tr><th>其他名稱：</th><td>{{ sds.other_names }}</td></tr>
+    <tr><th>建議用途及限制用途：</th><td>{{ sds.recommended_use }}{% if sds.restricted_use %}；限制用途：{{ sds.restricted_use }}{% endif %}</td></tr>
+    <tr><th>供應商名稱、地址：</th><td>{{ sds.supplier_info or "實驗室自建／待補充" }}</td></tr>
+    <tr><th>緊急聯絡電話/傳真電話：</th><td>{{ sds.emergency_phone }}</td></tr>
   </table>
 
-  <h2>2. 危害辨識資料</h2>
-  <table>
-    <tr><th>危害圖示</th><td class="pictograms">
-      {% for svg_uri in pictogram_uris %}
-        <img src="{{ svg_uri }}" alt="GHS" />
-      {% else %}
-        無須標示危害圖示
-      {% endfor %}
-    </td></tr>
-    <tr><th>警示語</th><td>{% if sds.signal_word %}<span class="signal">{{ sds.signal_word }}</span>{% else %}無{% endif %}</td></tr>
-    <tr><th>危害成分分類</th><td>{{ sds.hazard_classification_zh or "依 GHS H 代碼分類" }}</td></tr>
-    <tr><th>危害警告訊息 (H)</th><td>
-      {% for line in sds.h_statements_zh %}<div>{{ line }}</div>{% else %}無{% endfor %}
-    </td></tr>
-    <tr><th>危害防範措施 (P)</th><td>
-      {% for line in sds.p_statements_zh %}<div>{{ line }}</div>{% else %}無{% endfor %}
-    </td></tr>
+  <!-- 二、危害辨識資料 -->
+  <div class="sec-title">二、危害辨識資料</div>
+  <table class="sds-box">
+    <tr>
+      <th>化學品危害分類：</th>
+      <td>
+        {% if sds.hazard_classifications %}
+          {% for cls in sds.hazard_classifications %}<div>{{ loop.index }}. {{ cls }}</div>{% endfor %}
+        {% else %}
+          {{ sds.hazard_classification_zh or "依 GHS H 代碼分類" }}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>標示內容：</th>
+      <td>
+        <div class="sub-block"><span class="sub-label">象徵符號：</span>
+          <span class="pictograms">
+            {% for svg_uri in pictogram_uris %}<img src="{{ svg_uri }}" alt="GHS" />{% else %}無須標示象徵符號{% endfor %}
+          </span>
+        </div>
+        <div class="sub-block"><span class="sub-label">警 示 語：</span>
+          <span class="signal-word">{{ sds.signal_word or "無" }}</span>
+        </div>
+        <div class="sub-block"><span class="sub-label">危害警示訊息：</span>
+          {% for line in sds.h_statements_zh %}<div>{{ loop.index }}. {{ line }}</div>{% else %}<div>無</div>{% endfor %}
+        </div>
+        <div class="sub-block"><span class="sub-label">危害防範措施：</span>
+          {% for line in sds.p_statements_zh %}<div>{{ loop.index }}. {{ line }}</div>{% else %}<div>無</div>{% endfor %}
+        </div>
+      </td>
+    </tr>
+    <tr><th>其他危害：</th><td>{{ sds.other_hazards }}</td></tr>
   </table>
 
-  <h2>3. 成分辨識資料</h2>
-  <table>
-    <tr><th>CAS No.</th><td>{{ sds.cas_number }}</td></tr>
-    <tr><th>分子式 / 分子量</th><td>{{ sds.formula or "—" }} / {{ sds.molecular_weight or "—" }} g/mol</td></tr>
-    <tr><th>含量 / 備註</th><td>{{ sds.composition_note }}</td></tr>
+  <!-- 三、成分辨識資料 -->
+  <div class="sec-title">三、成分辨識資料</div>
+  <table class="sds-box">
+    <tr><th>中英文名稱：</th><td>{{ sds.name_zh }}{% if sds.name_en %} ({{ sds.name_en }}){% endif %}</td></tr>
+    <tr><th>同義名稱：</th><td>{{ sds.synonyms }}</td></tr>
+    <tr><th>化學文摘社登記號碼 (CAS No.)：</th><td>{{ sds.cas_number }}{% if sds.formula %}（分子式：{{ sds.formula }}，分子量：{{ sds.molecular_weight or "—" }}）{% endif %}</td></tr>
+    <tr><th>危害成分 (成分百分比)：</th><td>{{ sds.concentration_pct }}（{{ sds.composition_note }}）</td></tr>
   </table>
 
-  <h2>4. 急救措施</h2><p>{{ sds.section_4_first_aid }}</p>
-  <h2>5. 滅火措施</h2><p>{{ sds.section_5_fire_fighting }}</p>
-  <h2>6. 洩漏處理方法</h2><p>{{ sds.section_6_accidental_release }}</p>
-  <h2>7. 安全處置與儲存方法</h2><p>{{ sds.section_7_handling_storage }}</p>
-  <h2>8. 暴露預防措施</h2><p>{{ sds.section_8_exposure_controls }}</p>
-  <h2>9. 物理及化學性質</h2><p>{{ sds.section_9_physical_chemical }}</p>
-  <h2>10. 安定性及反應性</h2><p>{{ sds.section_10_stability_reactivity }}</p>
-  <h2>11. 毒性資料</h2><p>{{ sds.section_11_toxicological }}</p>
-  <h2>12. 生態資料</h2><p>{{ sds.section_12_ecological }}</p>
-  <h2>13. 廢棄處置方法</h2><p>{{ sds.section_13_disposal }}</p>
-  <h2>14. 運送資料</h2><p>{{ sds.section_14_transport }}</p>
-  <h2>15. 法規資料</h2><p>{{ sds.section_15_regulatory }}</p>
-  <h2>16. 其他資料</h2><p>{{ sds.section_16_other }}</p>
+  <!-- 四、急救措施 -->
+  <div class="sec-title">四、急救措施</div>
+  <table class="sds-box">
+    <tr>
+      <td colspan="2">
+        <div class="sub-label">不同暴露途徑之急救方法：</div>
+        <div class="sub-block"><span class="sub-label">食　　入：</span><span class="pre-line">{{ sds.first_aid_ingestion }}</span></div>
+        <div class="sub-block"><span class="sub-label">吸　　入：</span><span class="pre-line">{{ sds.first_aid_inhalation }}</span></div>
+        <div class="sub-block"><span class="sub-label">眼睛接觸：</span><span class="pre-line">{{ sds.first_aid_eye }}</span></div>
+        <div class="sub-block"><span class="sub-label">皮膚接觸：</span><span class="pre-line">{{ sds.first_aid_skin }}</span></div>
+      </td>
+    </tr>
+    <tr><td colspan="2"><span class="sub-label">最重要症狀及危害效應：</span><div class="pre-line">{{ sds.first_aid_symptoms }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">對急救人員之防護：</span><div>{{ sds.first_aid_rescuer_ppe }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">對醫師之提示：</span><div class="pre-line">{{ sds.first_aid_physician_note }}</div></td></tr>
+  </table>
 
-  <div class="footer">
-    產生時間：{{ generated_at_str }} ｜ 系統彙整內部參考版（正式法規依據請以供應商原廠 SDS 為準）
+  <!-- 五、滅火措施 -->
+  <div class="sec-title">五、滅火措施</div>
+  <table class="sds-box">
+    <tr><td colspan="2"><span class="sub-label">適用滅火劑：</span><div>{{ sds.fire_extinguishing_media }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">滅火時可能遭遇之特殊危害：</span><div class="pre-line">{{ sds.fire_special_hazards }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">特殊滅火程序：</span><div class="pre-line">{{ sds.fire_procedures }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">消防人員之特殊防護裝備：</span><div class="pre-line">{{ sds.fire_ppe }}</div></td></tr>
+  </table>
+
+  <!-- 六、洩漏處理方法 -->
+  <div class="sec-title">六、洩漏處理方法</div>
+  <table class="sds-box">
+    <tr><td colspan="2"><span class="sub-label">個人應注意事項：</span><div class="pre-line">{{ sds.release_personal }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">環境注意事項：</span><div class="pre-line">{{ sds.release_env }}</div></td></tr>
+    <tr><td colspan="2"><span class="sub-label">清理方法：</span><div class="pre-line">{{ sds.release_cleanup }}</div></td></tr>
+  </table>
+
+  <!-- 七、安全處置與儲存方法 -->
+  <div class="sec-title">七、安全處置與儲存方法</div>
+  <table class="sds-box">
+    <tr><th>處置：</th><td class="pre-line">{{ sds.handling_notes }}</td></tr>
+    <tr><th>儲存：</th><td class="pre-line">{{ sds.storage_notes }}</td></tr>
+  </table>
+
+  <!-- 八、暴露預防措施 -->
+  <div class="sec-title">八、暴露預防措施</div>
+  <table class="sds-box">
+    <tr><td colspan="2"><span class="sub-label">工程控制：</span><div class="pre-line">{{ sds.eng_controls }}</div></td></tr>
+    <tr>
+      <td colspan="2">
+        <div class="sub-label" style="text-align:center;">國內控制參數</div>
+        <table class="inner-grid">
+          <tr>
+            <th>八小時日時量平均容許濃度<br>TWA</th>
+            <th>短時間時量平均容許濃度<br>STEL</th>
+            <th>最高容許濃度<br>CEILING</th>
+            <th>生物指標<br>BEIs</th>
+          </tr>
+          <tr>
+            <td>{{ sds.twa }}</td><td>{{ sds.stel }}</td><td>{{ sds.ceiling }}</td><td>{{ sds.beis }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="sub-label">個人防護設備：</div>
+        <div><b>手部防護：</b>{{ sds.ppe_hands }}</div>
+        <div><b>皮膚及身體防護：</b>{{ sds.ppe_skin_body }}</div>
+        <div><b>呼吸防護：</b>{{ sds.ppe_respiratory }}</div>
+        <div><b>眼睛防護：</b>{{ sds.ppe_eyes }}</div>
+      </td>
+    </tr>
+    <tr><td colspan="2"><span class="sub-label">衛生措施：</span><div class="pre-line">{{ sds.hygiene_measures }}</div></td></tr>
+  </table>
+
+  <!-- 九、物理及化學性質 -->
+  <div class="sec-title">九、物理及化學性質</div>
+  <table class="sds-box prop-grid">
+    <tr><th>外觀（物質狀態、顏色等）：</th><td>{{ sds.phys_appearance }}</td><th>氣味：</th><td>{{ sds.phys_odor }}</td></tr>
+    <tr><th>嗅覺閾值：</th><td>{{ sds.phys_odor_threshold }}</td><th>熔點：</th><td>{{ sds.phys_melting_point }}</td></tr>
+    <tr><th>pH 值：</th><td>{{ sds.phys_ph }}</td><th>沸點/沸點範圍：</th><td>{{ sds.phys_boiling_point }}</td></tr>
+    <tr><th>易燃性(固體，氣體)：</th><td>{{ sds.phys_flammability }}</td><th>閃火點：</th><td>{{ sds.phys_flash_point }}</td></tr>
+    <tr><th>分解溫度：</th><td>{{ sds.phys_decomp_temp }}</td><th>測試方法(開杯或閉杯)：</th><td>{{ sds.phys_flash_test_method }}</td></tr>
+    <tr><th>自燃溫度：</th><td>{{ sds.phys_autoignition_temp }}</td><th>爆炸界限：</th><td>{{ sds.phys_explosion_limits }}</td></tr>
+    <tr><th>蒸氣壓：</th><td>{{ sds.phys_vapor_pressure }}</td><th>蒸氣密度：</th><td>{{ sds.phys_vapor_density }}</td></tr>
+    <tr><th>密度：</th><td>{{ sds.phys_density }}</td><th>溶解度：</th><td>{{ sds.phys_solubility }}</td></tr>
+    <tr><th>辛醇/水分配係數(log Kow)：</th><td>{{ sds.phys_log_kow }}</td><th>揮發速率：</th><td>{{ sds.phys_evap_rate }}</td></tr>
+  </table>
+
+  <!-- 十、安定性及反應性 -->
+  <div class="sec-title">十、安定性及反應性</div>
+  <table class="sds-box">
+    <tr><th>安定性：</th><td>{{ sds.stability }}</td></tr>
+    <tr><th>特殊狀態下可能之危害反應：</th><td class="pre-line">{{ sds.hazardous_reactions }}</td></tr>
+    <tr><th>應避免之狀況：</th><td>{{ sds.conditions_to_avoid }}</td></tr>
+    <tr><th>應避免之物質：</th><td class="pre-line">{{ sds.materials_to_avoid }}</td></tr>
+    <tr><th>危害分解物：</th><td>{{ sds.decomp_products }}</td></tr>
+  </table>
+
+  <!-- 十一、毒性資料 -->
+  <div class="sec-title">十一、毒性資料</div>
+  <table class="sds-box">
+    <tr><th>暴露途徑：</th><td>{{ sds.tox_routes }}</td></tr>
+    <tr><th>症狀：</th><td>{{ sds.tox_symptoms }}</td></tr>
+    <tr>
+      <th>急毒性：</th>
+      <td>
+        <div><b>皮膚接觸：</b>{{ sds.tox_acute_skin }}</div>
+        <div><b>吸　　入：</b>{{ sds.tox_acute_inhalation }}</div>
+        <div><b>食　　入：</b>{{ sds.tox_acute_ingestion }}</div>
+        <div><b>眼睛接觸：</b>{{ sds.tox_acute_eye }}</div>
+        <div><b>LD50：</b>{{ sds.tox_ld50 }}　<b>LC50：</b>{{ sds.tox_lc50 }}</div>
+      </td>
+    </tr>
+    <tr><th>慢毒性或長期毒性：</th><td class="pre-line">{{ sds.tox_chronic }}</td></tr>
+  </table>
+
+  <!-- 十二、生態資料 -->
+  <div class="sec-title">十二、生態資料</div>
+  <table class="sds-box">
+    <tr><th>生態毒性：</th><td class="pre-line">{{ sds.eco_toxicity }}</td></tr>
+    <tr><th>持久性及降解性：</th><td class="pre-line">{{ sds.eco_persistence }}</td></tr>
+    <tr><th>生物蓄積性：</th><td>{{ sds.eco_bioaccumulation }}</td></tr>
+    <tr><th>土壤中之流動性：</th><td>{{ sds.eco_mobility }}</td></tr>
+    <tr><th>其他不良效應：</th><td>{{ sds.eco_other }}</td></tr>
+  </table>
+
+  <!-- 十三、廢棄處置方法 -->
+  <div class="sec-title">十三、廢棄處置方法</div>
+  <table class="sds-box">
+    <tr><th>廢棄處置方法：</th><td class="pre-line">{{ sds.disposal_methods }}</td></tr>
+  </table>
+
+  <!-- 十四、運送資料 -->
+  <div class="sec-title">十四、運送資料</div>
+  <table class="sds-box">
+    <tr><th>聯合國編號 (UN No.)：</th><td>{{ sds.un_number }}</td></tr>
+    <tr><th>聯合國運輸名稱：</th><td>{{ sds.un_shipping_name }}</td></tr>
+    <tr><th>運輸危害分類：</th><td>{{ sds.transport_hazard_class }}</td></tr>
+    <tr><th>包裝類別：</th><td>{{ sds.packing_group }}</td></tr>
+    <tr><th>海洋污染物 (是/否)：</th><td>{{ sds.marine_pollutant }}</td></tr>
+    <tr><th>特殊運送方法及注意事項：</th><td>{{ sds.transport_special }}</td></tr>
+    <tr><th>緊急應變處理原則：</th><td>{{ sds.erg_guide }}</td></tr>
+  </table>
+
+  <!-- 十五、法規資料 -->
+  <div class="sec-title">十五、法規資料</div>
+  <table class="sds-box">
+    <tr><td class="pre-line"><span class="sub-label">適用法規：</span><br>{{ sds.regulations }}</td></tr>
+  </table>
+
+  <!-- 十六、其他資料 -->
+  <div class="sec-title">十六、其他資料</div>
+  <table class="sds-box">
+    <tr><th>參考文獻：</th><td class="pre-line">{{ sds.references }}</td></tr>
+    <tr><th>製表者單位：</th><td>名稱：{{ sds.preparer_org }}<br>地址/電話：{{ sds.preparer_address_phone }}</td></tr>
+    <tr><th>製表人：</th><td>職稱：{{ sds.preparer_title }}　　姓名：{{ sds.preparer_name }}</td></tr>
+    <tr><th>製表日期：</th><td>{{ sds.prepare_date or generated_at_str[:10] }}</td></tr>
+    <tr><th>備註：</th><td>上述資料中符號「－」代表目前查無資料，而符號「／」代表此欄位對該物質並不適用。</td></tr>
+  </table>
+
+  <div class="footer-note">
+    {{ sds.section_16_other }}<br>
+    產生時間：{{ generated_at_str }} ｜ 使用者請依實際應用需求判斷其可用性，尤其須注意混合時可能產生不同之危害（本系統亦提供相容性矩陣防呆檢查）。
   </div>
 </body>
 </html>

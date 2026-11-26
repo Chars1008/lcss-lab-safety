@@ -30,6 +30,48 @@ def validate_cas_checksum(cas_number: str) -> bool:
     return (total % 10) == check_digit
 
 
+H_CLASSIFICATION_MAP: dict[str, str] = {
+    "H224": "易燃液體第 1 級",
+    "H225": "易燃液體第 2 級",
+    "H226": "易燃液體第 3 級",
+    "H228": "易燃固體第 1/2 級",
+    "H260": "禁水性物質第 1 級",
+    "H271": "氧化性液體／固體第 1 級",
+    "H272": "氧化性液體／固體第 2/3 級",
+    "H290": "金屬腐蝕物第 1 級",
+    "H300": "急毒性物質第 1/2 級（吞食）",
+    "H301": "急毒性物質第 3 級（吞食）",
+    "H302": "急毒性物質第 4 級（吞食）",
+    "H304": "吸入性危害物質第 1 級",
+    "H310": "急毒性物質第 1/2 級（皮膚）",
+    "H311": "急毒性物質第 3 級（皮膚）",
+    "H312": "急毒性物質第 4 級（皮膚）",
+    "H314": "腐蝕／刺激皮膚物質第 1 級",
+    "H315": "腐蝕／刺激皮膚物質第 2 級",
+    "H317": "皮膚過敏物質第 1 級",
+    "H318": "嚴重損傷／刺激眼睛物質第 1 級",
+    "H319": "嚴重損傷／刺激眼睛物質第 2A 級",
+    "H330": "急毒性物質第 1/2 級（吸入）",
+    "H331": "急毒性物質第 3 級（吸入）",
+    "H332": "急毒性物質第 4 級（吸入）",
+    "H334": "呼吸道過敏物質第 1 級",
+    "H335": "特定標的器官系統毒性物質－單一暴露第 3 級（呼吸道刺激）",
+    "H336": "特定標的器官系統毒性物質－單一暴露第 3 級（麻醉效應）",
+    "H340": "生殖細胞致突變性物質第 1 級",
+    "H341": "生殖細胞致突變性物質第 2 級",
+    "H350": "致癌物質第 1 級",
+    "H351": "致癌物質第 2 級",
+    "H361d": "生殖毒性物質第 2 級（發育）",
+    "H361f": "生殖毒性物質第 2 級（生育力）",
+    "H370": "特定標的器官系統毒性物質－單一暴露第 1 級",
+    "H372": "特定標的器官系統毒性物質－重複暴露第 1 級",
+    "H373": "特定標的器官系統毒性物質－重複暴露第 2 級",
+    "H400": "水環境之危害物質（急毒性）第 1 級",
+    "H410": "水環境之危害物質（慢毒性）第 1 級",
+    "H411": "水環境之危害物質（慢毒性）第 2 級",
+}
+
+
 class ChemResolver:
     """Deterministic chemical metadata & GHS resolver with offline fallback."""
 
@@ -59,6 +101,55 @@ class ChemResolver:
         table = self._hp_zh.get("p_codes", {})
         return [f"{code}：{table[code]}" if code in table else code for code in p_codes]
 
+    def infer_hazard_classifications(self, h_codes: list[str]) -> list[str]:
+        """Derive Taiwanese GHS hazard classifications from H-codes."""
+        classes: list[str] = []
+        for code in h_codes:
+            label = H_CLASSIFICATION_MAP.get(code)
+            if label and label not in classes:
+                classes.append(label)
+        return classes
+
+    def _build_sds_payload(
+        self,
+        cas: str,
+        name_zh: str,
+        name_en: str,
+        formula: str,
+        mw: Optional[float],
+        smiles: str,
+        inchikey: str,
+        pictograms: list[str],
+        signal_word: Optional[str],
+        h_codes: list[str],
+        p_codes: list[str],
+        data_source: str,
+        extra: Optional[dict[str, Any]] = None,
+    ) -> SDSPayload:
+        classifications = self.infer_hazard_classifications(h_codes)
+        payload = SDSPayload(
+            cas_number=cas,
+            name_zh=name_zh,
+            name_en=name_en,
+            formula=formula,
+            molecular_weight=mw,
+            smiles=smiles,
+            inchikey=inchikey,
+            ghs_pictograms=pictograms,
+            signal_word=signal_word,
+            h_codes=h_codes,
+            p_codes=p_codes,
+            h_statements_zh=self.translate_h_codes(h_codes),
+            p_statements_zh=self.translate_p_codes(p_codes),
+            hazard_classifications=classifications,
+            hazard_classification_zh="；".join(classifications),
+            data_source=data_source,
+        )
+        if extra:
+            valid_updates = {k: v for k, v in extra.items() if hasattr(payload, k)}
+            payload = payload.model_copy(update=valid_updates)
+        return payload
+
     def resolve_offline(self, cas_number: str) -> Optional[ResolvedChemical]:
         """Look up chemical in built-in offline CAMEO/GHS dataset."""
         cas = cas_number.strip()
@@ -74,20 +165,20 @@ class ChemResolver:
         except ValueError:
             ctrl = ControlLevel.NORMAL
 
-        sds = SDSPayload(
-            cas_number=cas,
+        sds = self._build_sds_payload(
+            cas=cas,
             name_zh=entry.get("name_zh", ""),
             name_en=entry.get("name_en", ""),
             formula=entry.get("formula", ""),
-            molecular_weight=entry.get("mw"),
+            mw=entry.get("mw"),
             smiles=entry.get("smiles", ""),
-            ghs_pictograms=entry.get("ghs", []),
+            inchikey="",
+            pictograms=entry.get("ghs", []),
             signal_word=entry.get("signal"),
             h_codes=h_codes,
             p_codes=p_codes,
-            h_statements_zh=self.translate_h_codes(h_codes),
-            p_statements_zh=self.translate_p_codes(p_codes),
             data_source="OFFLINE_CAMEO_TW_GHS",
+            extra=entry.get("sds_extra"),
         )
         return ResolvedChemical(
             cas_number=cas,
@@ -156,21 +247,21 @@ class ChemResolver:
             except (TypeError, ValueError):
                 mw = offline.molecular_weight if offline else None
 
-            sds = SDSPayload(
-                cas_number=cas,
+            offline_extra = self._cas_map.get(cas, {}).get("sds_extra") if validate_cas_checksum(cas) else None
+            sds = self._build_sds_payload(
+                cas=cas,
                 name_zh=name_zh,
                 name_en=name_en,
                 formula=props.get("MolecularFormula", offline.formula if offline else ""),
-                molecular_weight=mw,
+                mw=mw,
                 smiles=smiles,
                 inchikey=props.get("InChIKey", ""),
-                ghs_pictograms=pictograms,
+                pictograms=pictograms,
                 signal_word=signal_word,
                 h_codes=h_codes,
                 p_codes=p_codes,
-                h_statements_zh=self.translate_h_codes(h_codes),
-                p_statements_zh=self.translate_p_codes(p_codes),
                 data_source="PUBCHEM_TW_GHS",
+                extra=offline_extra,
             )
             return ResolvedChemical(
                 cas_number=cas,

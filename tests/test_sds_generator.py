@@ -44,6 +44,31 @@ def test_sds_and_label_pdf_generation_and_pymupdf_read(tmp_path):
     assert label_pdf.exists() and label_pdf.stat().st_size > 1000
 
 
+def test_detailed_taiwan_epa_format_sds_for_acrylamide(tmp_path):
+    resolver = ChemResolver()
+    acrylamide = resolver.resolve_offline("79-06-1")
+    assert acrylamide is not None and acrylamide.sds_payload is not None
+
+    gen = SDSGenerator()
+    pdf_path = tmp_path / "acrylamide_sds.pdf"
+    gen.export_sds_pdf(acrylamide.sds_payload, pdf_path)
+    assert pdf_path.exists()
+
+    extracted = PDFParser().extract_text(pdf_path)
+    for expected in (
+        "050-01",
+        "丙烯醯胺",
+        "79-06-1",
+        "國內控制參數",
+        "0.03 mg/m3",
+        "84.5℃",
+        "2074",
+        "第 6.1 類毒性物質",
+        "系統彙整內部參考版",
+    ):
+        assert expected in extracted
+
+
 @respx.mock
 def test_llm_service_translation_and_graceful_degradation():
     resolver = ChemResolver()

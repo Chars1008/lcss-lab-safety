@@ -118,7 +118,10 @@ class LocalLLMService:
         prompt = (
             "請從以下原廠 SDS 文本中萃取結構化資訊，回傳 JSON 物件，包含 keys: "
             "cas_number, name_zh, name_en, signal_word, h_codes (陣列), p_codes (陣列), "
-            "section_4_first_aid, section_5_fire_fighting, section_7_handling_storage。\n\n"
+            "first_aid_ingestion, first_aid_inhalation, first_aid_eye, first_aid_skin, "
+            "fire_extinguishing_media, fire_special_hazards, handling_notes, storage_notes, "
+            "twa, stel, phys_appearance, phys_melting_point, phys_boiling_point, phys_ph, "
+            "materials_to_avoid, tox_ld50, un_number, transport_hazard_class。\n\n"
             f"{snippet}"
         )
         return self._generate_json(prompt, client=client) or {}
