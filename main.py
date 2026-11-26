@@ -15,7 +15,7 @@ from app.ui.setup_wizard import SetupWizard
 def main() -> int:
     """Initialize settings, database, optional first-run wizard, and main window."""
     app = QApplication(sys.argv)
-    app.setApplicationName("Laboratory Chemical Safety System (LCSS)")
+    app.setApplicationName("勤思實驗室藥品安全管理系統(GLCSS)")
 
     settings = AppSettings.load()
     settings.ensure_directories()

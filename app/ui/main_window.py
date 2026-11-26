@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.db = db
         self.settings = settings
-        self.setWindowTitle("實驗室藥品安全管理系統 (LCSS)")
+        self.setWindowTitle("勤思實驗室藥品安全管理系統(GLCSS)")
         self.resize(1180, 760)
 
         self.resolver = ChemResolver(timeout=settings.network_timeout_seconds)

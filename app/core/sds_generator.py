@@ -9,8 +9,10 @@ from typing import Optional
 
 import qrcode
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from PySide6.QtGui import QPageLayout, QPageSize, QTextDocument
+from PySide6.QtCore import QBuffer, QIODevice, Qt
+from PySide6.QtGui import QImage, QPageLayout, QPageSize, QPainter, QTextDocument
 from PySide6.QtPrintSupport import QPrinter
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 from app.config import DATA_DIR
@@ -37,11 +39,25 @@ class SDSGenerator:
         )
 
     def _svg_data_uri(self, code: str) -> Optional[str]:
+        """Render GHS SVG pictogram to crisp PNG data URI for reliable QTextDocument PDF output."""
         svg_path = self.pictograms_dir / f"{code}.svg"
         if not svg_path.exists():
             return None
-        b64 = base64.b64encode(svg_path.read_bytes()).decode("ascii")
-        return f"data:image/svg+xml;base64,{b64}"
+        _ensure_qt_app()
+        renderer = QSvgRenderer(str(svg_path))
+        if not renderer.isValid():
+            return None
+        img = QImage(128, 128, QImage.Format.Format_ARGB32)
+        img.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(img)
+        renderer.render(painter)
+        painter.end()
+
+        qbuf = QBuffer()
+        qbuf.open(QIODevice.OpenModeFlag.WriteOnly)
+        img.save(qbuf, "PNG")
+        b64 = base64.b64encode(bytes(qbuf.data())).decode("ascii")
+        return f"data:image/png;base64,{b64}"
 
     def _qr_data_uri(self, text: str) -> str:
         img = qrcode.make(text)
@@ -73,7 +89,7 @@ class SDSGenerator:
         pictogram_uris = [
             uri for code in label.ghs_pictograms if (uri := self._svg_data_uri(code)) is not None
         ]
-        qr_payload = f"LCSS|{label.barcode}|{label.cas_number}|{label.name_zh}"
+        qr_payload = f"GLCSS|{label.barcode}|{label.cas_number}|{label.name_zh}"
         qr_uri = self._qr_data_uri(qr_payload)
         return template.render(
             label=label,

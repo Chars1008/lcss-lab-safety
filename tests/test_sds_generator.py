@@ -50,9 +50,16 @@ def test_detailed_taiwan_epa_format_sds_for_acrylamide(tmp_path):
     assert acrylamide is not None and acrylamide.sds_payload is not None
 
     gen = SDSGenerator()
+    html = gen.render_sds_html(acrylamide.sds_payload)
+    assert "data:image/png;base64," in html
+
     pdf_path = tmp_path / "acrylamide_sds.pdf"
     gen.export_sds_pdf(acrylamide.sds_payload, pdf_path)
     assert pdf_path.exists()
+
+    import fitz
+    with fitz.open(str(pdf_path)) as doc:
+        assert len(doc[0].get_images()) >= 2  # GHS06 + GHS08 embedded in page 1
 
     extracted = PDFParser().extract_text(pdf_path)
     for expected in (

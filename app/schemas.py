@@ -242,7 +242,7 @@ class SDSPayload(BaseModel):
         "4. 國家標準 CNS 15030「化學品分類及標示」\n"
         "5. NOAA CAMEO Chemicals 反應性相容資料庫"
     )
-    preparer_org: str = "實驗室安全管理系統 (LCSS)"
+    preparer_org: str = "勤思實驗室藥品安全管理系統(GLCSS)"
     preparer_address_phone: str = "－"
     preparer_title: str = "實驗室管理人"
     preparer_name: str = "系統自動彙整"

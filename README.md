@@ -1,4 +1,4 @@
-# 實驗室藥品安全管理系統（Laboratory Chemical Safety System, LCSS）
+# 勤思實驗室藥品安全管理系統(GLCSS)
 
 通用型實驗室藥品安全管理系統（Python + PySide6 + SQLite + 可選配 Ollama），兼顧台灣教學／研究實驗室（含高中至大學分子生物與化學實驗室）之實務管理需求。
 

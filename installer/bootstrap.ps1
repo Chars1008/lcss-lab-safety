@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-Write-Host "=== 實驗室藥品安全管理系統 (LCSS) 環境安裝引導程式 ===" -ForegroundColor Cyan
+Write-Host "=== 勤思實驗室藥品安全管理系統(GLCSS) 環境安裝引導程式 ===" -ForegroundColor Cyan
 
 $SourceRoot = Split-Path -Parent $PSScriptRoot
 if (-not (Test-Path $InstallDir)) {
@@ -59,11 +59,11 @@ try {
 Write-Host "[4/4] 建立桌面捷徑..." -ForegroundColor Yellow
 $WshShell = New-Object -ComObject WScript.Shell
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
-$Shortcut = $WshShell.CreateShortcut((Join-Path $DesktopPath "LCSS 實驗室藥品安全管理系統.lnk"))
+$Shortcut = $WshShell.CreateShortcut((Join-Path $DesktopPath "勤思實驗室藥品安全管理系統(GLCSS).lnk"))
 $Shortcut.TargetPath = "wscript.exe"
 $Shortcut.Arguments = "`"$(Join-Path $SourceRoot 'installer\launch.vbs')`""
 $Shortcut.WorkingDirectory = $SourceRoot
-$Shortcut.Description = "Laboratory Chemical Safety System (LCSS)"
+$Shortcut.Description = "勤思實驗室藥品安全管理系統(GLCSS)"
 $Shortcut.Save()
 
 Write-Host "=== 安裝完成！可雙擊桌面捷徑啟動 LCSS ===" -ForegroundColor Green

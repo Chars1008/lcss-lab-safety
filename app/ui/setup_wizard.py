@@ -31,7 +31,7 @@ class WelcomeHealthPage(QWizardPage):
 
     def __init__(self, settings: AppSettings, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.setTitle("歡迎使用實驗室藥品安全管理系統 (LCSS)")
+        self.setTitle("歡迎使用勤思實驗室藥品安全管理系統(GLCSS)")
         self.setSubTitle("步驟 1/4：執行環境與核心元件健康檢查")
 
         try:
@@ -149,7 +149,7 @@ class SetupWizard(QWizard):
         super().__init__(parent)
         self.db = db
         self.settings = settings
-        self.setWindowTitle("LCSS 首次啟動設定精靈")
+        self.setWindowTitle("GLCSS 首次啟動設定精靈")
         self.resize(620, 440)
 
         self.page_welcome = WelcomeHealthPage(settings)
