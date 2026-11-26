@@ -450,11 +450,16 @@ class SDSView(QWidget):
 
     def _on_llm_done(self, updated: SDSPayload) -> None:
         self._populate_form(updated)
+        if self._current_chem_id is not None:
+            with self.db.get_session() as session:
+                LCSSRepository(session).update_chemical_sds(
+                    self._current_chem_id, updated.model_dump(mode="json")
+                )
         if self.llm_service.last_error:
             self.status_lbl.setText(f"Ollama 翻譯部分失敗：{self.llm_service.last_error}")
             QMessageBox.warning(self, "Ollama 翻譯提醒", self.llm_service.last_error)
         else:
-            self.status_lbl.setText("Ollama 雙語翻譯完成（已套用至表單，請檢視後儲存或匯出）。")
+            self.status_lbl.setText("Ollama 雙語翻譯完成並已儲存（可立即匯出 PDF）。")
 
     def _on_llm_error(self, err: str) -> None:
         msg = err.splitlines()[0]

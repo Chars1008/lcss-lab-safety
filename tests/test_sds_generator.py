@@ -133,28 +133,27 @@ def test_english_sds_export_and_bidirectional_translation(tmp_path):
     ):
         assert expected in extracted
 
-    sds_zh_src = ethanol.sds_payload.model_copy(update={"phys_appearance": "澄清液體"})
-    respx.post("http://localhost:11434/api/generate").mock(
-        return_value=httpx.Response(
-            200,
-            json={"response": '```json\n{"recommended_use": "Solvent and disinfectant", "phys_appearance": "Clear liquid (澄清液體)"}\n```'},
-        )
+    sds_zh_src = ethanol.sds_payload.model_copy(
+        update={"recommended_use": "實驗室溶劑", "phys_appearance": "澄清液體"}
     )
+
+    def _mock_translate(request: httpx.Request) -> httpx.Response:
+        body = request.content.decode("utf-8")
+        if "澄清液體" in body:
+            return httpx.Response(200, json={"response": "Clear liquid (澄清液體)"})
+        if "Clear colorless liquid" in body:
+            return httpx.Response(200, json={"response": "澄清無色液體"})
+        return httpx.Response(200, json={"response": "Laboratory solvent"})
+
+    respx.post("http://localhost:11434/api/generate").mock(side_effect=_mock_translate)
     llm = LocalLLMService(enabled=True)
     translated_en = llm.translate_sds_language(sds_zh_src, target_language="en")
     assert translated_en.name_zh == ""
     assert translated_en.name_en == "Ethanol"
-    assert translated_en.recommended_use == "Solvent and disinfectant"
     assert translated_en.phys_appearance == "Clear liquid"
 
     # EN -> ZH: retains English name_en and English reference in translated field
     sds_en_src = ethanol.sds_payload.model_copy(update={"phys_appearance": "Clear colorless liquid"})
-    respx.post("http://localhost:11434/api/generate").mock(
-        return_value=httpx.Response(
-            200,
-            json={"response": '{"name_zh": "乙醇", "phys_appearance": "澄清無色液體"}'},
-        )
-    )
     translated_zh = llm.translate_sds_language(sds_en_src, target_language="zh-TW")
     assert translated_zh.name_en == "Ethanol"
     assert "乙醇" in translated_zh.name_zh

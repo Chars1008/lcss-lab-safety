@@ -97,6 +97,7 @@ class LocalLLMService:
                     "prompt": prompt,
                     "format": "json",
                     "stream": False,
+                    "think": False,
                     "keep_alive": "10m",
                 },
             )
@@ -163,14 +164,14 @@ class LocalLLMService:
             "transport_hazard_class",
         ]
 
-        # Only send fields that actually need translation to minimize tokens & avoid timeouts
+        # Only translate fields that actually need translation, one field at a time (plain text)
+        # to eliminate JSON truncation/escaping failures on long PubChem paragraphs.
         fields_to_translate: list[str] = []
         for k in translatable_fields:
             val = str(getattr(sds, k) or "").strip()
             if not val or val in ("－", "/"):
                 continue
             if target_language == "zh-TW":
-                # Skip fields already containing Chinese unless they are mostly English
                 if not _contains_cjk(val) and re.search(r"[A-Za-z]{2,}", val):
                     fields_to_translate.append(k)
             else:
@@ -180,60 +181,68 @@ class LocalLLMService:
         if target_language == "zh-TW" and not sds.name_zh and sds.name_en:
             fields_to_translate.insert(0, "name_zh")
 
-        batch_size = 7
-        batches = [
-            fields_to_translate[i : i + batch_size]
-            for i in range(0, len(fields_to_translate), batch_size)
-        ]
-        if target_language == "zh-TW":
-            instruction = (
-                "You are a Taiwan chemical safety (GHS) translator. Translate EVERY field value below into "
-                "natural Traditional Chinese (繁體中文). Return ONLY a JSON object with the exact same keys."
-            )
-        else:
-            instruction = (
-                "You are a chemical safety (GHS) translator. Translate EVERY field value below into "
-                "clear professional English, removing all Chinese characters. Return ONLY a JSON object with the exact same keys."
-            )
-
         updates: dict[str, Any] = {}
-        for batch_keys in batches:
-            payload_subset = {
-                k: (sds.name_en if k == "name_zh" and not getattr(sds, k) else getattr(sds, k))
-                for k in batch_keys
-            }
-            prompt = (
-                f"{instruction}\n"
-                f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
-                f"Input JSON:\n{json.dumps(payload_subset, ensure_ascii=False)}"
-            )
-            parsed = self._generate_json(prompt, client=client)
-            if not parsed:
-                continue
-            for k in batch_keys:
-                val = parsed.get(k)
-                if not isinstance(val, str) or not val.strip():
-                    continue
-                new_val = val.strip()
-                orig_val = str(getattr(sds, k) or "").strip()
-
+        own_client = client is None
+        http = client or httpx.Client(
+            timeout=httpx.Timeout(connect=10.0, read=max(self.timeout, 180.0), write=30.0, pool=10.0)
+        )
+        try:
+            self.last_error = ""
+            for k in fields_to_translate:
+                orig_val = (
+                    sds.name_en
+                    if (k == "name_zh" and not sds.name_zh)
+                    else str(getattr(sds, k) or "").strip()
+                )
                 if target_language == "zh-TW":
-                    # EN -> ZH: retain English reference if original was non-trivial English
-                    if k != "name_zh" and orig_val and orig_val not in ("－", "/") and not _contains_cjk(orig_val):
-                        if orig_val.lower() not in new_val.lower():
-                            new_val = f"{new_val} ({orig_val})"
-                    updates[k] = new_val
+                    prompt = (
+                        "Translate the following chemical safety text into natural Traditional Chinese (繁體中文). "
+                        "Output ONLY the translated Traditional Chinese text, with no extra explanation or markdown.\n\n"
+                        f"{orig_val}"
+                    )
                 else:
-                    # ZH -> EN: keep English, remove Chinese
-                    updates[k] = _strip_cjk(new_val) if _contains_cjk(new_val) else new_val
+                    prompt = (
+                        "Translate the following chemical safety text into clear professional English. "
+                        "Output ONLY the translated English text with no Chinese characters and no extra explanation.\n\n"
+                        f"{orig_val}"
+                    )
+
+                try:
+                    resp = http.post(
+                        f"{self.host}/api/generate",
+                        json={
+                            "model": self.model,
+                            "prompt": prompt,
+                            "stream": False,
+                            "think": False,
+                            "keep_alive": "10m",
+                        },
+                    )
+                    if resp.status_code != 200:
+                        self.last_error = f"Ollama HTTP {resp.status_code}: {resp.text[:200]}"
+                        break
+                    translated = resp.json().get("response", "").strip()
+                    if not translated:
+                        continue
+                    if target_language == "zh-TW":
+                        if k != "name_zh" and not _contains_cjk(orig_val):
+                            if orig_val.lower() not in translated.lower():
+                                translated = f"{translated} ({orig_val})"
+                        updates[k] = translated
+                    else:
+                        updates[k] = _strip_cjk(translated) if _contains_cjk(translated) else translated
+                except (httpx.HTTPError, ValueError, TypeError) as exc:
+                    self.last_error = f"Ollama 連線或推論失敗：{exc}"
+                    break
+        finally:
+            if own_client:
+                http.close()
 
         if target_language == "en":
-            # Remove Chinese name on ZH -> EN while keeping English name intact
             updates["name_zh"] = ""
             if not sds.name_en and sds.name_zh:
                 updates["name_en"] = _strip_cjk(sds.name_zh)
         else:
-            # EN -> ZH: explicitly retain name_en
             updates["name_en"] = sds.name_en
 
         return sds.model_copy(update=updates)
