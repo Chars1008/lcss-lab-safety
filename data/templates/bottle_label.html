@@ -3,54 +3,67 @@
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; margin: 10px; }
+  body { font-family: "Microsoft JhengHei", "Noto Sans TC", "Segoe UI", sans-serif; margin: 4px; color: #111827; }
   .label-box {
-    border: 2px solid #111827; border-radius: 6px; padding: 10px 14px;
-    width: 440px; background: #ffffff;
+    border: 1.5px solid #111827; border-radius: 4px; padding: 6px 8px;
+    width: 320px; background: #ffffff;
   }
-  .header { display: flex; justify-content: space-between; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 6px; }
-  .title { font-size: 13pt; font-weight: bold; color: #111827; }
-  .en { font-size: 9pt; color: #4b5563; }
-  .badge { font-size: 8.5pt; padding: 2px 6px; border-radius: 3px; background: #e0e7ff; color: #1e3a8a; font-weight: bold; }
-  .signal { display: inline-block; background: #dc2626; color: #fff; font-weight: bold; padding: 1px 8px; font-size: 9.5pt; margin-top: 4px; }
-  .meta { font-size: 9pt; margin-top: 6px; line-height: 1.45; }
-  .pictograms { margin-top: 6px; }
-  .pictograms img { width: 38px; height: 38px; margin-right: 4px; }
-  .qr-row { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed #cbd5e1; padding-top: 6px; }
-  .qr-row img { width: 72px; height: 72px; }
+  .title { font-size: 10.5pt; font-weight: bold; color: #111827; }
+  .en { font-size: 8.5pt; color: #374151; font-weight: bold; }
+  .badge { font-size: 7.5pt; padding: 1px 5px; border-radius: 3px; background: #e0e7ff; color: #1e3a8a; font-weight: bold; }
+  .signal { display: inline-block; background: #dc2626; color: #ffffff; font-weight: bold; padding: 1px 6px; font-size: 8pt; margin-top: 3px; }
+  .meta { font-size: 7.8pt; margin-top: 4px; line-height: 1.35; }
+  .pictograms { margin-top: 4px; }
+  .pictograms img { width: 30px; height: 30px; margin-right: 4px; }
+  table.footer-tbl { width: 100%; border-top: 1px dashed #cbd5e1; margin-top: 4px; padding-top: 3px; }
+  table.footer-tbl td { vertical-align: middle; font-size: 7.2pt; color: #374151; }
 </style>
 </head>
 <body>
   <div class="label-box">
-    <div class="header">
-      <div>
-        <div class="title">{{ label.name_zh }}</div>
-        {% if label.name_en %}<div class="en">{{ label.name_en }}</div>{% endif %}
-      </div>
-      <span class="badge">{{ "自配/分裝試劑" if label.item_type.value == "PREPARED" else "原裝化學品" }}</span>
+    <div>
+      <span class="title">{{ label.name_zh }}</span>
+      <span class="badge">{{ "自配/分裝 / Prepared" if label.item_type.value == "PREPARED" else "原裝 / Commercial" }}</span>
     </div>
+    {% if label.name_en %}<div class="en">{{ label.name_en }}</div>{% endif %}
+
     {% if label.signal_word %}
-      <div class="signal">警示語：{{ label.signal_word }}</div>
+      <div class="signal">警示語 / Signal Word：{{ label.signal_word }}</div>
     {% endif %}
+
     <div class="meta">
       {% if label.cas_number %}<div><b>CAS No.：</b>{{ label.cas_number }}</div>{% endif %}
-      {% if label.concentration %}<div><b>濃度：</b>{{ label.concentration }}</div>{% endif %}
-      {% if label.prepared_by %}<div><b>配製者：</b>{{ label.prepared_by }}　<b>配製日：</b>{{ label.prepared_date or "—" }}</div>{% endif %}
-      <div><b>有效期限：</b>{{ label.expiry_date or "未設定" }}　<b>位置：</b>{{ label.location_label or "—" }}</div>
-      {% if label.hazard_summary %}<div><b>危害摘要：</b>{{ label.hazard_summary }}</div>{% endif %}
+      {% if label.formula or label.molecular_weight %}
+        <div>
+          {% if label.formula %}<b>分子式 / Formula：</b>{{ label.formula }}　{% endif %}
+          {% if label.molecular_weight %}<b>分子量 / MW：</b>{{ label.molecular_weight }} g/mol{% endif %}
+        </div>
+      {% endif %}
+      {% if label.concentration %}<div><b>濃度 / Conc.：</b>{{ label.concentration }}</div>{% endif %}
+      {% if label.prepared_by %}<div><b>配製者 / Prepared by：</b>{{ label.prepared_by }}　<b>日期 / Date：</b>{{ label.prepared_date or "—" }}</div>{% endif %}
+      {% if label.expiry_date or label.location_label %}
+        <div><b>效期 / Expiry：</b>{{ label.expiry_date or "—" }}　<b>位置 / Loc.：</b>{{ label.location_label or "—" }}</div>
+      {% endif %}
+      {% if label.hazard_summary %}<div><b>危害代碼 / Hazards：</b>{{ label.hazard_summary }}</div>{% endif %}
     </div>
+
     {% if pictogram_uris %}
     <div class="pictograms">
-      {% for uri in pictogram_uris %}<img src="{{ uri }}" alt="GHS" />{% endfor %}
+      {% for uri in pictogram_uris %}<img src="{{ uri }}" width="30" height="30" alt="GHS" />{% endfor %}
     </div>
     {% endif %}
-    <div class="qr-row">
-      <div style="font-size: 8.5pt; color: #374151;">
-        <div><b>條碼編號：</b>{{ label.barcode }}</div>
-        <div>勤思實驗室藥品安全管理系統(GLCSS)</div>
-      </div>
-      {% if qr_uri %}<img src="{{ qr_uri }}" alt="QR" />{% endif %}
-    </div>
+
+    <table class="footer-tbl">
+      <tr>
+        <td>
+          <div><b>條碼 / Barcode：</b>{{ label.barcode }}</div>
+          <div>勤思實驗室藥品安全管理系統(GLCSS)</div>
+        </td>
+        <td style="text-align: right; width: 48px;">
+          {% if qr_uri %}<img src="{{ qr_uri }}" width="42" height="42" alt="QR" />{% endif %}
+        </td>
+      </tr>
+    </table>
   </div>
 </body>
 </html>

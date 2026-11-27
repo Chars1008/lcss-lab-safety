@@ -134,6 +134,7 @@ def test_manual_entry_filters_cabinet_matrix_and_saved_sds_list(qtbot, tmp_path)
     cv._select_all_and_check()
     assert cv.matrix_table.rowCount() == 2
     assert cv.matrix_table.item(0, 1).text() == "禁混"
+    assert cv.matrix_table.item(0, 1).foreground().color().name() == "#7f1d1d"
 
     # 3. SDSView: saved_sds_table lists all chemicals and clicking switches editor
     sv = win.sds_view

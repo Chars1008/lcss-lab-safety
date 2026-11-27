@@ -171,21 +171,26 @@ class CompatibilityView(QWidget):
                     cell = QTableWidgetItem("—")
                     cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     cell.setBackground(QColor("#f3f4f6"))
+                    cell.setForeground(QColor("#374151"))
                     self.matrix_table.setItem(i, j, cell)
                     continue
                 issue = self.compat_engine.check_pair(selected[i], selected[j])
                 self._issue_lookup[(i, j)] = issue
                 if issue.level == CompatibilityLevel.INCOMPATIBLE:
-                    text, bg = "禁混", QColor("#fecaca")
+                    text, bg, fg = "禁混", QColor("#fecaca"), QColor("#7f1d1d")
                 elif issue.level == CompatibilityLevel.CAUTION:
-                    text, bg = "警示", QColor("#fde68a")
+                    text, bg, fg = "警示", QColor("#fde68a"), QColor("#78350f")
                 elif issue.level == CompatibilityLevel.UNKNOWN:
-                    text, bg = "未知", QColor("#e5e7eb")
+                    text, bg, fg = "未知", QColor("#e5e7eb"), QColor("#1f2937")
                 else:
-                    text, bg = "相容", QColor("#bbf7d0")
+                    text, bg, fg = "相容", QColor("#bbf7d0"), QColor("#14532d")
                 cell = QTableWidgetItem(text)
                 cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 cell.setBackground(bg)
+                cell.setForeground(fg)
+                font = cell.font()
+                font.setBold(issue.level in (CompatibilityLevel.INCOMPATIBLE, CompatibilityLevel.CAUTION))
+                cell.setFont(font)
                 self.matrix_table.setItem(i, j, cell)
 
     def _on_cell_clicked(self, row: int, col: int) -> None:

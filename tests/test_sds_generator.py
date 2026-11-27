@@ -33,6 +33,8 @@ def test_sds_and_label_pdf_generation_and_pymupdf_read(tmp_path):
         name_zh="75% 乙醇消毒液",
         name_en="75% Ethanol",
         cas_number="64-17-5",
+        formula="C2H6O",
+        molecular_weight=46.07,
         barcode="LCSS-TEST0001",
         ghs_pictograms=["GHS02", "GHS07"],
         signal_word="危險",
@@ -40,8 +42,19 @@ def test_sds_and_label_pdf_generation_and_pymupdf_read(tmp_path):
         prepared_by="王小明",
         prepared_date=date.today(),
     )
+    html_lbl = gen.render_label_html(req)
+    assert 'width="42"' in html_lbl
+    assert "46.07 g/mol" in html_lbl
+    assert "Formula" in html_lbl and "MW" in html_lbl
+
     gen.export_label_pdf(req, label_pdf)
     assert label_pdf.exists() and label_pdf.stat().st_size > 1000
+
+    import fitz
+    with fitz.open(str(label_pdf)) as doc:
+        assert len(doc) == 1
+        rect = doc[0].rect
+        assert rect.width <= 305 and rect.height <= 430  # Within A6 (298 x 420 pt)
 
 
 def test_detailed_taiwan_epa_format_sds_for_acrylamide(tmp_path):

@@ -506,6 +506,8 @@ class SDSView(QWidget):
             name_zh=payload.name_zh or payload.name_en,
             name_en=payload.name_en,
             cas_number=payload.cas_number,
+            formula=payload.formula,
+            molecular_weight=payload.molecular_weight,
             barcode=f"CAS-{payload.cas_number}",
             ghs_pictograms=payload.ghs_pictograms,
             signal_word=payload.signal_word,

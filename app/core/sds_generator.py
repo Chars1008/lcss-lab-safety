@@ -183,9 +183,9 @@ class SDSGenerator:
         )
 
     def export_label_pdf(self, label: LabelRequest, output_path: Path | str) -> Path:
-        """Export bottle / prepared reagent label to PDF."""
+        """Export bottle / prepared reagent label to A6 PDF."""
         html = self.render_label_html(label)
-        return self._html_to_pdf(html, Path(output_path), page_size=QPageSize.PageSizeId.A5)
+        return self._html_to_pdf(html, Path(output_path), page_size=QPageSize.PageSizeId.A6)
 
     def _html_to_pdf(
         self,

@@ -275,12 +275,14 @@ class ResolvedChemical(BaseModel):
 
 
 class LabelRequest(BaseModel):
-    """Data required to render a GHS bottle label or prepared reagent label."""
+    """Data required to render an A6 bilingual GHS bottle or prepared reagent label."""
 
     item_type: ItemType = ItemType.COMMERCIAL
     name_zh: str
     name_en: str = ""
     cas_number: str = ""
+    formula: str = ""
+    molecular_weight: Optional[float] = None
     barcode: str
     ghs_pictograms: list[str] = Field(default_factory=list)
     signal_word: Optional[str] = None
