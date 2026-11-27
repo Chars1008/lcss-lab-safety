@@ -43,8 +43,11 @@ class CompatibilityView(QWidget):
         self._issue_lookup: dict[tuple[int, int], CompatibilityIssue] = {}
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(6)
         title = QLabel("化學相容性檢查矩陣（N × N 互動檢查器）")
-        title.setStyleSheet("font-size: 15pt; font-weight: bold;")
+        title.setStyleSheet("font-size: 13pt; font-weight: bold; padding: 2px 0;")
+        title.setFixedHeight(30)
         layout.addWidget(title)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -91,7 +94,7 @@ class CompatibilityView(QWidget):
         splitter.addWidget(right)
 
         splitter.setSizes([310, 610])
-        layout.addWidget(splitter)
+        layout.addWidget(splitter, 1)
         self.reload_chemicals()
 
     def reload_chemicals(self) -> None:
