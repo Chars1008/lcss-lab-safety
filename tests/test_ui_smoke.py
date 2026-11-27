@@ -185,3 +185,43 @@ def test_github_updater_check_and_zip_apply(tmp_path):
         assert (app_dir / "app" / "hello.py").exists()
         # User config must be preserved
         assert "MyLab" in (app_dir / "config" / "settings.json").read_text(encoding="utf-8")
+
+
+def test_ui_language_dark_light_theme_and_storage_paths(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QApplication
+    monkeypatch.setattr(AppSettings, "save", lambda self, path=None: tmp_path / "settings.json")
+
+    settings = AppSettings(
+        initialized=True,
+        db_path=str(tmp_path / "pref.db"),
+        exports_dir=str(tmp_path / "exports"),
+        labels_dir=str(tmp_path / "labels"),
+        sds_files_dir=str(tmp_path / "sds_files"),
+    )
+    db = init_db(settings.db_path)
+    win = MainWindow(db, settings)
+    qtbot.addWidget(win)
+    sv = win.settings_view
+
+    # Switch UI language to English -> immediate update
+    idx_en = sv.ui_lang_combo.findData("en")
+    sv.ui_lang_combo.setCurrentIndex(idx_en)
+    assert "Safety Overview" in win.nav_list.item(0).text()
+    assert "Settings" in win.nav_list.item(4).text()
+
+    # Switch back to zh-TW
+    idx_zh = sv.ui_lang_combo.findData("zh-TW")
+    sv.ui_lang_combo.setCurrentIndex(idx_zh)
+    assert "安全檢查" in win.nav_list.item(0).text()
+
+    # Switch theme to dark & back to light
+    idx_dark = sv.ui_theme_combo.findData("dark")
+    sv.ui_theme_combo.setCurrentIndex(idx_dark)
+    assert "#0f172a" in QApplication.instance().styleSheet()
+    idx_light = sv.ui_theme_combo.findData("light")
+    sv.ui_theme_combo.setCurrentIndex(idx_light)
+    assert "#f8fafc" in QApplication.instance().styleSheet()
+
+    # Verify path fields populated
+    assert sv.exports_dir_edit.text() == str(tmp_path / "exports")
+    assert sv.sds_dir_edit.text() == str(tmp_path / "sds_files")

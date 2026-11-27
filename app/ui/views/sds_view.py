@@ -480,8 +480,9 @@ class SDSView(QWidget):
         if payload is None:
             return
         lang = self.lang_combo.currentData() or "zh-TW"
-        EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        default_path = EXPORTS_DIR / f"SDS_{payload.cas_number}_{lang}.pdf"
+        exports_dir = Path(self.settings.exports_dir)
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        default_path = exports_dir / f"SDS_{payload.cas_number}_{lang}.pdf"
         file_path, _ = QFileDialog.getSaveFileName(
             self, "匯出 SDS PDF", str(default_path), "PDF Files (*.pdf)"
         )
@@ -495,8 +496,9 @@ class SDSView(QWidget):
         payload = self._collect_payload()
         if payload is None:
             return
-        LABELS_DIR.mkdir(parents=True, exist_ok=True)
-        default_path = LABELS_DIR / f"Label_{payload.cas_number}.pdf"
+        labels_dir = Path(self.settings.labels_dir)
+        labels_dir.mkdir(parents=True, exist_ok=True)
+        default_path = labels_dir / f"Label_{payload.cas_number}.pdf"
         file_path, _ = QFileDialog.getSaveFileName(
             self, "匯出瓶身標籤 PDF", str(default_path), "PDF Files (*.pdf)"
         )
@@ -524,8 +526,9 @@ class SDSView(QWidget):
         src_path, _ = QFileDialog.getOpenFileName(self, "選擇原廠 SDS PDF", "", "PDF Files (*.pdf)")
         if not src_path:
             return
-        SDS_FILES_DIR.mkdir(parents=True, exist_ok=True)
-        dest = SDS_FILES_DIR / f"{self._current_payload.cas_number}_{Path(src_path).name}"
+        sds_files_dir = Path(self.settings.sds_files_dir)
+        sds_files_dir.mkdir(parents=True, exist_ok=True)
+        dest = sds_files_dir / f"{self._current_payload.cas_number}_{Path(src_path).name}"
         shutil.copy2(src_path, dest)
         with self.db.get_session() as session:
             LCSSRepository(session).add_sds_document(self._current_chem_id, str(dest))

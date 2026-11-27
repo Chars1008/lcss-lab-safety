@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QListWidget,
     QMainWindow,
@@ -19,6 +20,7 @@ from app.core.llm_service import LocalLLMService
 from app.core.pdf_parser import PDFParser
 from app.core.sds_generator import SDSGenerator
 from app.db.database import DatabaseManager
+from app.ui.theme import apply_theme, apply_ui_language
 from app.ui.views import (
     CompatibilityView,
     DashboardView,
@@ -87,6 +89,8 @@ class MainWindow(QMainWindow):
             self.llm_service,
             on_locations_changed=self.inventory_view.reload_locations,
             on_data_imported=self._refresh_all_views,
+            on_theme_changed=lambda t: apply_theme(QApplication.instance(), t),
+            on_language_changed=lambda lang: apply_ui_language(self, lang),
         )
 
         for view in (
@@ -104,6 +108,9 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.nav_list)
         root_layout.addWidget(self.stack, 1)
         self.setCentralWidget(central)
+
+        apply_theme(QApplication.instance(), self.settings.ui_theme)
+        apply_ui_language(self, self.settings.ui_language)
 
     def _refresh_all_views(self) -> None:
         self.dashboard_view.refresh()

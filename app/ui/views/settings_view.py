@@ -46,6 +46,8 @@ class SettingsView(QWidget):
         llm_service: LocalLLMService,
         on_locations_changed: Optional[Callable[[], None]] = None,
         on_data_imported: Optional[Callable[[], None]] = None,
+        on_theme_changed: Optional[Callable[[str], None]] = None,
+        on_language_changed: Optional[Callable[[str], None]] = None,
         parent: Optional[QWidget] = None,
     ) -> None:
         super().__init__(parent)
@@ -54,6 +56,8 @@ class SettingsView(QWidget):
         self.llm_service = llm_service
         self.on_locations_changed = on_locations_changed
         self.on_data_imported = on_data_imported
+        self.on_theme_changed = on_theme_changed
+        self.on_language_changed = on_language_changed
         self.thread_pool = QThreadPool.globalInstance()
         self._selected_loc_id: Optional[int] = None
 
@@ -76,6 +80,43 @@ class SettingsView(QWidget):
         save_lab_btn.clicked.connect(self._save_settings)
         lab_form.addRow(save_lab_btn)
         layout.addWidget(lab_box)
+
+        # 1b. UI Language, Theme (Light/Dark), and Storage Paths
+        pref_box = QGroupBox("介面外觀、語言與檔案位置設定")
+        pref_form = QFormLayout(pref_box)
+
+        self.ui_lang_combo = QComboBox()
+        self.ui_lang_combo.addItem("繁體中文 (zh-TW)", "zh-TW")
+        self.ui_lang_combo.addItem("English (en)", "en")
+        idx_l = self.ui_lang_combo.findData(settings.ui_language)
+        if idx_l >= 0:
+            self.ui_lang_combo.setCurrentIndex(idx_l)
+        self.ui_lang_combo.currentIndexChanged.connect(self._on_ui_lang_changed)
+
+        self.ui_theme_combo = QComboBox()
+        self.ui_theme_combo.addItem("淺色模式 (Light)", "light")
+        self.ui_theme_combo.addItem("深色模式 (Dark)", "dark")
+        idx_t = self.ui_theme_combo.findData(settings.ui_theme)
+        if idx_t >= 0:
+            self.ui_theme_combo.setCurrentIndex(idx_t)
+        self.ui_theme_combo.currentIndexChanged.connect(self._on_ui_theme_changed)
+
+        self.db_path_edit = QLineEdit(settings.db_path)
+        self.exports_dir_edit = QLineEdit(settings.exports_dir)
+        self.labels_dir_edit = QLineEdit(settings.labels_dir)
+        self.sds_dir_edit = QLineEdit(settings.sds_files_dir)
+
+        pref_form.addRow("介面語言 (Language)：", self.ui_lang_combo)
+        pref_form.addRow("明暗主題 (Theme)：", self.ui_theme_combo)
+        pref_form.addRow("資料庫檔案路徑 (.db)：", self._make_path_row(self.db_path_edit, is_file=True))
+        pref_form.addRow("SDS／名單匯出資料夾：", self._make_path_row(self.exports_dir_edit, is_file=False))
+        pref_form.addRow("瓶身標籤匯出資料夾：", self._make_path_row(self.labels_dir_edit, is_file=False))
+        pref_form.addRow("原廠 PDF 歸檔資料夾：", self._make_path_row(self.sds_dir_edit, is_file=False))
+
+        save_pref_btn = QPushButton("儲存介面與檔案位置設定")
+        save_pref_btn.clicked.connect(self._save_settings)
+        pref_form.addRow(save_pref_btn)
+        layout.addWidget(pref_box)
 
         # 2. Cabinet / Shelf CRUD Management
         loc_box = QGroupBox("藥品櫃位／層架管理（新增、編輯與刪除現有位置）")
@@ -209,16 +250,62 @@ class SettingsView(QWidget):
         if idx >= 0:
             self.cab_type_combo.setCurrentIndex(idx)
 
+    def _make_path_row(self, line_edit: QLineEdit, is_file: bool) -> QHBoxLayout:
+        row = QHBoxLayout()
+        btn = QPushButton("瀏覽...")
+        if is_file:
+            btn.clicked.connect(lambda: self._browse_file(line_edit))
+        else:
+            btn.clicked.connect(lambda: self._browse_dir(line_edit))
+        row.addWidget(line_edit, 1)
+        row.addWidget(btn)
+        return row
+
+    def _browse_file(self, line_edit: QLineEdit) -> None:
+        path, _ = QFileDialog.getSaveFileName(self, "選擇資料庫檔案", line_edit.text(), "SQLite DB (*.db)")
+        if path:
+            line_edit.setText(path)
+
+    def _browse_dir(self, line_edit: QLineEdit) -> None:
+        path = QFileDialog.getExistingDirectory(self, "選擇資料夾", line_edit.text())
+        if path:
+            line_edit.setText(path)
+
+    def _on_ui_lang_changed(self) -> None:
+        lang = self.ui_lang_combo.currentData() or "zh-TW"
+        self.settings.ui_language = lang
+        self.settings.save()
+        if self.on_language_changed:
+            self.on_language_changed(lang)
+
+    def _on_ui_theme_changed(self) -> None:
+        theme = self.ui_theme_combo.currentData() or "light"
+        self.settings.ui_theme = theme
+        self.settings.save()
+        if self.on_theme_changed:
+            self.on_theme_changed(theme)
+
     def _save_settings(self) -> None:
         self.settings.lab_name = self.lab_name_edit.text().strip()
         self.settings.lab_manager = self.manager_edit.text().strip()
         self.settings.emergency_phone = self.phone_edit.text().strip()
+        self.settings.ui_language = self.ui_lang_combo.currentData() or "zh-TW"
+        self.settings.ui_theme = self.ui_theme_combo.currentData() or "light"
+        self.settings.db_path = self.db_path_edit.text().strip() or self.settings.db_path
+        self.settings.exports_dir = self.exports_dir_edit.text().strip() or self.settings.exports_dir
+        self.settings.labels_dir = self.labels_dir_edit.text().strip() or self.settings.labels_dir
+        self.settings.sds_files_dir = self.sds_dir_edit.text().strip() or self.settings.sds_files_dir
         self.settings.llm_enabled = self.llm_enabled_chk.isChecked()
         self.settings.ollama_host = self.ollama_host_edit.text().strip()
         self.settings.ollama_model = self.ollama_model_combo.currentText().strip()
+        self.settings.ensure_directories()
         self.settings.save()
         self._sync_llm_service()
-        QMessageBox.information(self, "設定已儲存", "系統設定已寫入 config/settings.json。")
+        if self.on_theme_changed:
+            self.on_theme_changed(self.settings.ui_theme)
+        if self.on_language_changed:
+            self.on_language_changed(self.settings.ui_language)
+        QMessageBox.information(self, "設定已儲存", "系統設定與檔案位置已寫入 config/settings.json（變更資料庫路徑於下次啟動生效）。")
 
     def _sync_llm_service(self) -> None:
         self.llm_service.enabled = self.settings.llm_enabled

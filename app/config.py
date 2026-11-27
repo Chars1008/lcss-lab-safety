@@ -30,6 +30,13 @@ class AppSettings(BaseSettings):
     emergency_phone: str = "119 / 校安中心"
     organization: str = ""
     db_path: str = str(STORAGE_DIR / "lcss.db")
+    sds_files_dir: str = str(SDS_FILES_DIR)
+    exports_dir: str = str(EXPORTS_DIR)
+    labels_dir: str = str(LABELS_DIR)
+
+    # UI preferences
+    ui_language: str = "zh-TW"
+    ui_theme: str = "light"
 
     # Alert thresholds
     expiry_warning_days: int = 30
@@ -46,7 +53,13 @@ class AppSettings(BaseSettings):
 
     def ensure_directories(self) -> None:
         """Create required runtime directories if missing."""
-        for directory in (CONFIG_DIR, STORAGE_DIR, SDS_FILES_DIR, LABELS_DIR, EXPORTS_DIR):
+        for directory in (
+            CONFIG_DIR,
+            STORAGE_DIR,
+            Path(self.sds_files_dir),
+            Path(self.labels_dir),
+            Path(self.exports_dir),
+        ):
             directory.mkdir(parents=True, exist_ok=True)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
