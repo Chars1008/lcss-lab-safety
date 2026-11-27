@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -28,7 +29,7 @@ from app.schemas import CompatibilityIssue, CompatibilityLevel
 
 
 class CompatibilityView(QWidget):
-    """Interactive N x N compatibility matrix checker (2-15 chemicals)."""
+    """Interactive N x N compatibility matrix checker with cabinet filtering."""
 
     def __init__(
         self,
@@ -48,21 +49,29 @@ class CompatibilityView(QWidget):
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left: Select 2..15 chemicals from DB
+        # Left: Filter by cabinet + Select 2..15 chemicals
         left = QWidget()
         left_layout = QVBoxLayout(left)
-        left_layout.addWidget(QLabel("從藥品主檔勾選 2～15 種化學品："))
+        left_layout.addWidget(QLabel("依存放櫃位篩選："))
+        self.cabinet_filter_combo = QComboBox()
+        self.cabinet_filter_combo.currentIndexChanged.connect(self._on_cabinet_filter_changed)
+        left_layout.addWidget(self.cabinet_filter_combo)
+
+        left_layout.addWidget(QLabel("勾選 2～15 種化學品："))
         self.chem_list = QListWidget()
         self.chem_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         left_layout.addWidget(self.chem_list)
 
         btn_row = QHBoxLayout()
-        reload_btn = QPushButton("重新載入清單")
+        reload_btn = QPushButton("重新載入")
         reload_btn.clicked.connect(self.reload_chemicals)
+        select_all_btn = QPushButton("全選並檢查")
+        select_all_btn.clicked.connect(self._select_all_and_check)
         check_btn = QPushButton("產生 N × N 矩陣")
         check_btn.setStyleSheet("background: #1e3a8a; color: #fff; font-weight: bold; padding: 6px;")
         check_btn.clicked.connect(self.run_matrix)
         btn_row.addWidget(reload_btn)
+        btn_row.addWidget(select_all_btn)
         btn_row.addWidget(check_btn)
         left_layout.addLayout(btn_row)
         splitter.addWidget(left)
@@ -81,14 +90,41 @@ class CompatibilityView(QWidget):
         right_layout.addWidget(self.detail_box, 1)
         splitter.addWidget(right)
 
-        splitter.setSizes([280, 620])
+        splitter.setSizes([310, 610])
         layout.addWidget(splitter)
         self.reload_chemicals()
 
     def reload_chemicals(self) -> None:
+        prev_loc = self.cabinet_filter_combo.currentData()
+        self.cabinet_filter_combo.blockSignals(True)
+        self.cabinet_filter_combo.clear()
+        self.cabinet_filter_combo.addItem("全部已建檔化學品", "ALL")
+        with self.db.get_session() as session:
+            for loc in LCSSRepository(session).list_locations():
+                self.cabinet_filter_combo.addItem(f"{loc.display_name} [{loc.cabinet_type}]", loc.id)
+        if prev_loc is not None:
+            idx = self.cabinet_filter_combo.findData(prev_loc)
+            if idx >= 0:
+                self.cabinet_filter_combo.setCurrentIndex(idx)
+        self.cabinet_filter_combo.blockSignals(False)
+        self._on_cabinet_filter_changed()
+
+    def _on_cabinet_filter_changed(self) -> None:
+        loc_id = self.cabinet_filter_combo.currentData()
         self.chem_list.clear()
         with self.db.get_session() as session:
-            chems = LCSSRepository(session).search_chemicals()
+            repo = LCSSRepository(session)
+            if isinstance(loc_id, int):
+                items = repo.get_items_in_location(loc_id)
+                seen: set[int] = set()
+                chems = []
+                for it in items:
+                    if it.chemical and it.chemical.id not in seen:
+                        seen.add(it.chemical.id)
+                        chems.append(it.chemical)
+            else:
+                chems = repo.search_chemicals()
+
         for c in chems:
             label = f"{c.name_zh or c.name_en} ({c.cas_number})"
             item = QListWidgetItem(label)
@@ -101,12 +137,19 @@ class CompatibilityView(QWidget):
             })
             self.chem_list.addItem(item)
 
+    def _select_all_and_check(self) -> None:
+        for i in range(min(self.chem_list.count(), 15)):
+            self.chem_list.item(i).setSelected(True)
+        self.run_matrix()
+
     def run_matrix(self) -> None:
         selected: list[dict[str, Any]] = [
             it.data(Qt.ItemDataRole.UserRole) for it in self.chem_list.selectedItems()
         ]
         if len(selected) < 2:
-            self.detail_box.setPlainText("請至少選擇 2 種化學品。")
+            self.detail_box.setPlainText("請至少選擇 2 種化學品（若此櫃位不足 2 種藥品則無混放衝突）。")
+            self.matrix_table.setRowCount(0)
+            self.matrix_table.setColumnCount(0)
             return
         if len(selected) > 15:
             selected = selected[:15]

@@ -6,17 +6,25 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QThreadPool
+from PySide6.QtCore import Qt, QThreadPool, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
@@ -87,6 +95,27 @@ class SDSView(QWidget):
         )
         layout.addWidget(self.active_chem_banner)
 
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Left panel: Saved SDS overview table + Archived Supplier PDFs
+        saved_box = QGroupBox("已儲存 SDS 清單")
+        saved_layout = QVBoxLayout(saved_box)
+        self.saved_sds_table = QTableWidget(0, 4)
+        self.saved_sds_table.setHorizontalHeaderLabels(["品名", "CAS No.", "狀態 / 來源", "原廠 PDF"])
+        self.saved_sds_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.saved_sds_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.saved_sds_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.saved_sds_table.itemSelectionChanged.connect(self._on_saved_table_selected)
+        saved_layout.addWidget(self.saved_sds_table, 3)
+
+        saved_layout.addWidget(QLabel("已歸檔原廠 SDS PDF（雙擊開啟）："))
+        self.archived_pdf_list = QListWidget()
+        self.archived_pdf_list.setMaximumHeight(110)
+        self.archived_pdf_list.itemDoubleClicked.connect(self._on_open_archived_pdf)
+        saved_layout.addWidget(self.archived_pdf_list, 1)
+        splitter.addWidget(saved_box)
+
+        # Right panel: 5-tab 16-section SDS editor
         self.tabs = QTabWidget()
 
         # Tab 1: Sections 1-3 (Identification, Hazards, Composition)
@@ -195,7 +224,9 @@ class SDSView(QWidget):
         f5.addRow("第 14 節 緊急應變原則：", self.erg_edit)
         self.tabs.addTab(_make_scroll_tab(f5), "11-15 毒理/生態/運送")
 
-        layout.addWidget(self.tabs, 1)
+        splitter.addWidget(self.tabs)
+        splitter.setSizes([310, 680])
+        layout.addWidget(splitter, 1)
 
         btn_row = QHBoxLayout()
         btn_row.addWidget(QLabel("輸出語言："))
@@ -232,8 +263,23 @@ class SDSView(QWidget):
         try:
             self.chem_combo.clear()
             with self.db.get_session() as session:
-                for c in LCSSRepository(session).search_chemicals():
+                repo = LCSSRepository(session)
+                chems = repo.search_chemicals()
+                self.saved_sds_table.setRowCount(len(chems))
+                for r, c in enumerate(chems):
                     self.chem_combo.addItem(f"{c.name_zh or c.name_en} ({c.cas_number})", c.id)
+                    docs = repo.list_sds_documents(c.id)
+                    sds_status = "已儲存" if c.sds_json else "預設草稿"
+                    vals = [
+                        c.name_zh or c.name_en,
+                        c.cas_number,
+                        f"{sds_status} ({c.data_source})",
+                        f"{len(docs)} 份",
+                    ]
+                    for col, v in enumerate(vals):
+                        cell = QTableWidgetItem(v)
+                        cell.setData(Qt.ItemDataRole.UserRole, c.id)
+                        self.saved_sds_table.setItem(r, col, cell)
             if prev_id is not None:
                 idx = self.chem_combo.findData(prev_id)
                 if idx >= 0:
@@ -241,6 +287,31 @@ class SDSView(QWidget):
         finally:
             self.chem_combo.blockSignals(False)
         self._on_chem_changed()
+
+    def _on_saved_table_selected(self) -> None:
+        row = self.saved_sds_table.currentRow()
+        if row < 0:
+            return
+        cell = self.saved_sds_table.item(row, 0)
+        chem_id = cell.data(Qt.ItemDataRole.UserRole) if cell else None
+        if chem_id is not None:
+            idx = self.chem_combo.findData(chem_id)
+            if idx >= 0 and idx != self.chem_combo.currentIndex():
+                self.chem_combo.setCurrentIndex(idx)
+
+    def _refresh_archived_pdfs(self, chem_id: int) -> None:
+        self.archived_pdf_list.clear()
+        with self.db.get_session() as session:
+            docs = LCSSRepository(session).list_sds_documents(chem_id)
+        for d in docs:
+            item = QListWidgetItem(f"{Path(d.file_path).name} ({d.uploaded_at.strftime('%Y-%m-%d')})")
+            item.setData(Qt.ItemDataRole.UserRole, d.file_path)
+            self.archived_pdf_list.addItem(item)
+
+    def _on_open_archived_pdf(self, item: QListWidgetItem) -> None:
+        fpath = item.data(Qt.ItemDataRole.UserRole)
+        if fpath and Path(fpath).exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(fpath).resolve())))
 
     def _on_chem_changed(self, _index: int = -1) -> None:
         chem_id = self.chem_combo.currentData()
@@ -272,6 +343,7 @@ class SDSView(QWidget):
                 )
         payload.emergency_phone = self.settings.emergency_phone
         self._populate_form(payload)
+        self._refresh_archived_pdfs(chem_id)
 
     def _populate_form(self, payload: SDSPayload) -> None:
         self._current_payload = payload

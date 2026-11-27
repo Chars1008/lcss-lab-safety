@@ -85,3 +85,59 @@ def test_settings_view_ollama_combo_and_location_table(qtbot, tmp_path, monkeypa
     sv.ollama_model_combo.setCurrentText("gemma2:9b")
     assert win.llm_service.model == "gemma2:9b"
     assert settings.ollama_model == "gemma2:9b"
+
+
+def test_manual_entry_filters_cabinet_matrix_and_saved_sds_list(qtbot, tmp_path):
+    settings = AppSettings(initialized=True, db_path=str(tmp_path / "feat.db"))
+    db = init_db(settings.db_path)
+    resolver = ChemResolver()
+
+    with db.get_session() as session:
+        repo = LCSSRepository(session)
+        loc_acid = repo.create_location("化研室", "耐酸鹼櫃", "第 1 層", "CORROSIVE")
+        loc_flam = repo.create_location("化研室", "易燃櫃", "第 1 層", "FLAMMABLE")
+        hcl = repo.upsert_chemical(resolver.resolve_offline("7647-01-0"))
+        bleach = repo.upsert_chemical(resolver.resolve_offline("7681-52-9"))
+        eth = repo.upsert_chemical(resolver.resolve_offline("64-17-5"))
+        repo.check_in_item(hcl.id, loc_acid.id, 1.0)
+        repo.check_in_item(bleach.id, loc_acid.id, 1.0)
+        repo.check_in_item(eth.id, loc_flam.id, 1.0)
+
+    win = MainWindow(db, settings)
+    qtbot.addWidget(win)
+
+    # 1. InventoryView: manual entry & multi-column filters
+    iv = win.inventory_view
+    iv.reload_locations()
+    iv.refresh_table()
+    assert iv.table.rowCount() == 3
+
+    # Filter by cabinet -> only 2 items in loc_acid
+    idx_acid = iv.filter_loc_combo.findData(loc_acid.id)
+    iv.filter_loc_combo.setCurrentIndex(idx_acid)
+    assert iv.table.rowCount() == 2
+
+    # Manual chemical creation without online lookup
+    iv._clear_form()
+    iv.edit_cas.setText("999-99-9")
+    iv.edit_name_zh.setText("自建測試試劑")
+    iv.edit_smiles.setText("CCO")
+    edited = iv._collect_edited_chemical()
+    assert edited is not None and edited.name_zh == "自建測試試劑"
+
+    # 2. CompatibilityView: filter by loc_acid and run one-click check -> INCOMPATIBLE
+    cv = win.compatibility_view
+    cv.reload_chemicals()
+    idx_cv_acid = cv.cabinet_filter_combo.findData(loc_acid.id)
+    cv.cabinet_filter_combo.setCurrentIndex(idx_cv_acid)
+    assert cv.chem_list.count() == 2
+    cv._select_all_and_check()
+    assert cv.matrix_table.rowCount() == 2
+    assert cv.matrix_table.item(0, 1).text() == "禁混"
+
+    # 3. SDSView: saved_sds_table lists all chemicals and clicking switches editor
+    sv = win.sds_view
+    sv.reload_chemicals()
+    assert sv.saved_sds_table.rowCount() == 3
+    sv.saved_sds_table.selectRow(1)
+    assert sv.chem_combo.currentData() is not None
