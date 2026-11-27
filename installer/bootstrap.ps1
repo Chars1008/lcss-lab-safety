@@ -37,20 +37,23 @@ Write-Host "[2/4] 檢查 / 安裝 Python 3.12..." -ForegroundColor Yellow
 
 # Step 3: Create isolated .venv and install dependencies
 $VenvDir = Join-Path $SourceRoot ".venv"
-if (-not (Test-Path $VenvDir)) {
+$VenvPython = Join-Path $VenvDir "Scripts\python.exe"
+if (-not (Test-Path $VenvPython)) {
     Write-Host "[3/4] 建立獨立虛擬環境 (.venv)..." -ForegroundColor Yellow
-    & $UvExe venv --python 3.12 $VenvDir
+    & $UvExe venv --python 3.12 --clear $VenvDir
+    if ($LASTEXITCODE -ne 0) { throw "建立虛擬環境失敗" }
 }
 
-Write-Host "[3/4] 安裝 LCSS 專案依賴套件..." -ForegroundColor Yellow
+Write-Host "[3/4] 安裝 GLCSS 專案依賴套件..." -ForegroundColor Yellow
 Push-Location $SourceRoot
 try {
     $Wheelhouse = Join-Path $SourceRoot "wheelhouse"
     if (Test-Path $Wheelhouse) {
-        & $UvExe pip install --python "$VenvDir\Scripts\python.exe" --no-index --find-links $Wheelhouse -e .
+        & $UvExe pip install --python $VenvPython --no-index --find-links $Wheelhouse -e .
     } else {
-        & $UvExe pip install --python "$VenvDir\Scripts\python.exe" -e .
+        & $UvExe pip install --python $VenvPython -e .
     }
+    if ($LASTEXITCODE -ne 0) { throw "安裝依賴套件失敗" }
 } finally {
     Pop-Location
 }

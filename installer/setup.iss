@@ -17,7 +17,7 @@ UninstallDisplayName=勤思實驗室藥品安全管理系統(GLCSS)
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "..\*"; DestDir: "{app}"; Excludes: ".venv\*,__pycache__\*,.pytest_cache\*,.git\*,dist\*,storage\*,config\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\*"; DestDir: "{app}"; Excludes: ".venv,.venv\*,__pycache__,__pycache__\*,*.pyc,.pytest_cache,.pytest_cache\*,.git,.git\*,dist,dist\*,storage,storage\*,config,config\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\勤思實驗室藥品安全管理系統(GLCSS)"; Filename: "wscript.exe"; Parameters: """{app}\installer\launch.vbs"""; WorkingDir: "{app}"
