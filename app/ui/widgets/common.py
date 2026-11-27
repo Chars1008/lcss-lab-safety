@@ -45,8 +45,20 @@ class GHSPictogramStrip(QWidget):
         base = (data_dir or DATA_DIR) / "ghs_pictograms"
         added = 0
         for code in codes:
+            png_path = base / f"{code}.png"
             svg_path = base / f"{code}.svg"
-            if svg_path.exists():
+            if png_path.exists():
+                lbl_img = QLabel()
+                lbl_img.setFixedSize(46, 46)
+                lbl_img.setPixmap(
+                    QPixmap(str(png_path)).scaled(
+                        44, 44, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                    )
+                )
+                lbl_img.setToolTip(code)
+                self._layout.addWidget(lbl_img)
+                added += 1
+            elif svg_path.exists():
                 svg = QSvgWidget(str(svg_path))
                 svg.setFixedSize(44, 44)
                 svg.setToolTip(code)

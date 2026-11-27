@@ -46,7 +46,12 @@ class SDSGenerator:
         )
 
     def _svg_data_uri(self, code: str) -> Optional[str]:
-        """Render GHS SVG pictogram to crisp PNG data URI for reliable QTextDocument PDF output."""
+        """Load exact GHS PNG pictogram (or render SVG fallback) as PNG data URI."""
+        png_path = self.pictograms_dir / f"{code}.png"
+        if png_path.exists():
+            b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
+            return f"data:image/png;base64,{b64}"
+
         svg_path = self.pictograms_dir / f"{code}.svg"
         if not svg_path.exists():
             return None
