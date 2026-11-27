@@ -72,7 +72,10 @@ class SDSGenerator:
         return f"data:image/png;base64,{b64}"
 
     def _qr_data_uri(self, text: str) -> str:
-        img = qrcode.make(text)
+        qr = qrcode.QRCode(border=1, box_size=8)
+        qr.add_data(text)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
@@ -174,7 +177,11 @@ class SDSGenerator:
         pictogram_uris = [
             uri for code in label.ghs_pictograms if (uri := self._svg_data_uri(code)) is not None
         ]
-        qr_payload = f"GLCSS|{label.barcode}|{label.cas_number}|{label.name_zh}"
+        qr_payload = (
+            f"https://pubchem.ncbi.nlm.nih.gov/#query={label.cas_number.strip()}"
+            if label.cas_number.strip()
+            else f"GLCSS:{label.barcode}"
+        )
         qr_uri = self._qr_data_uri(qr_payload)
         return template.render(
             label=label,
