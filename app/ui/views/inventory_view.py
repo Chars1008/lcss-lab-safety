@@ -497,6 +497,9 @@ class InventoryView(QWidget):
                     "name_en": chem.name_en,
                     "smiles": chem.smiles,
                     "reactive_groups": chem.reactive_groups,
+                    "ghs_pictograms": chem.ghs_pictograms,
+                    "h_codes": chem.h_codes,
+                    "sds_json": chem.sds_json,
                 }
                 issues = []
                 for ex in existing_items:
@@ -507,6 +510,9 @@ class InventoryView(QWidget):
                             "name_en": ex.chemical.name_en,
                             "smiles": ex.chemical.smiles,
                             "reactive_groups": ex.chemical.reactive_groups,
+                            "ghs_pictograms": ex.chemical.ghs_pictograms,
+                            "h_codes": ex.chemical.h_codes,
+                            "sds_json": ex.chemical.sds_json,
                         }
                         issue = self.compat_engine.check_pair(new_dict, ex_dict)
                         if issue.level in (CompatibilityLevel.INCOMPATIBLE, CompatibilityLevel.CAUTION):

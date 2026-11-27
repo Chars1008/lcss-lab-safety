@@ -152,13 +152,18 @@ class CompatibilityEngine:
                     summaries.append(rule["summary"])
 
         if worst_level == CompatibilityLevel.COMPATIBLE:
+            sds_issue = self._check_sds_section_10_cross_reference(
+                cas_a, cas_b, name_a, name_b, groups_a, groups_b, chem_a, chem_b, inference_note
+            )
+            if sds_issue is not None:
+                return sds_issue
             return CompatibilityIssue(
                 chem_a_cas=cas_a,
                 chem_b_cas=cas_b,
                 chem_a_name=name_a,
                 chem_b_name=name_b,
                 level=CompatibilityLevel.COMPATIBLE,
-                summary_zh="依目前反應基團矩陣未發現劇烈不相容反應。",
+                summary_zh="依目前反應基團矩陣及 SDS 第 10 節未發現劇烈不相容反應。",
                 recommendation_zh="可依一般分類存放，仍須保持容器密閉與適當通風。",
                 inference_note=inference_note,
             )
@@ -180,6 +185,82 @@ class CompatibilityEngine:
             summary_zh=" ".join(summaries),
             recommendation_zh=rec,
             inference_note=inference_note,
+        )
+
+    def _check_sds_section_10_cross_reference(
+        self,
+        cas_a: str,
+        cas_b: str,
+        name_a: str,
+        name_b: str,
+        groups_a: list[str],
+        groups_b: list[str],
+        chem_a: dict[str, Any],
+        chem_b: dict[str, Any],
+        inference_note: str,
+    ) -> Optional[CompatibilityIssue]:
+        """Tier-3 deterministic cross-check using SDS Section 10 (materials_to_avoid)."""
+        sds_a = chem_a.get("sds_json") or {}
+        sds_b = chem_b.get("sds_json") or {}
+        avoid_a = str(sds_a.get("materials_to_avoid") or "").lower()
+        avoid_b = str(sds_b.get("materials_to_avoid") or "").lower()
+
+        if not avoid_a and not avoid_b:
+            return None
+
+        # Keyword categories mapped to reactive groups / GHS pictograms / H-codes
+        category_rules = [
+            ("強酸/酸類", ("酸", "acid"), ("RG01", "RG02", "RG03"), ("GHS05",), ()),
+            ("強鹼/鹼類", ("鹼", "alkali", "base", "hydroxide"), ("RG08",), (), ()),
+            ("強氧化劑", ("氧化劑", "oxidiz", "peroxide", "過氧化物"), ("RG02", "RG09", "RG16", "RG17"), ("GHS03",), ()),
+            ("還原劑", ("還原劑", "reduc"), ("RG19",), (), ()),
+            ("水/潮氣", ("水", "water", "moisture"), ("RG20",), (), ("H260", "EUH014")),
+            ("有機溶劑/易燃物", ("易燃", "溶劑", "flammable", "solvent"), ("RG04", "RG11", "RG12", "RG14", "RG15"), ("GHS02",), ()),
+        ]
+
+        hits: list[str] = []
+        for label, keywords, target_groups, target_ghs, target_h in category_rules:
+            # Does A's SDS warn against B?
+            if avoid_a and any(kw in avoid_a for kw in keywords):
+                b_ghs = chem_b.get("ghs_pictograms") or []
+                b_h = chem_b.get("h_codes") or []
+                if any(g in groups_b for g in target_groups) or any(g in b_ghs for g in target_ghs) or any(h in b_h for h in target_h):
+                    hits.append(f"[{name_a}] SDS 第 10 節註明應避免接觸「{label}」")
+            # Does B's SDS warn against A?
+            if avoid_b and any(kw in avoid_b for kw in keywords):
+                a_ghs = chem_a.get("ghs_pictograms") or []
+                a_h = chem_a.get("h_codes") or []
+                if any(g in groups_a for g in target_groups) or any(g in a_ghs for g in target_ghs) or any(h in a_h for h in target_h):
+                    hits.append(f"[{name_b}] SDS 第 10 節註明應避免接觸「{label}」")
+
+        # Direct name / CAS mention in materials_to_avoid
+        for src_name, avoid_txt, tgt_cas, tgt_zh, tgt_en in (
+            (name_a, avoid_a, cas_b, chem_b.get("name_zh", ""), chem_b.get("name_en", "")),
+            (name_b, avoid_b, cas_a, chem_a.get("name_zh", ""), chem_a.get("name_en", "")),
+        ):
+            if not avoid_txt:
+                continue
+            for token in (tgt_cas, tgt_zh, tgt_en):
+                tok = str(token or "").strip().lower()
+                if len(tok) >= 2 and tok in avoid_txt:
+                    hits.append(f"[{src_name}] SDS 第 10 節直接點名應避免接觸「{token}」")
+                    break
+
+        if not hits:
+            return None
+
+        sds_note = "；".join(dict.fromkeys(hits))
+        combined_note = f"{inference_note}；{sds_note}" if inference_note else sds_note
+        return CompatibilityIssue(
+            chem_a_cas=cas_a,
+            chem_b_cas=cas_b,
+            chem_a_name=name_a,
+            chem_b_name=name_b,
+            level=CompatibilityLevel.CAUTION,
+            hazards=["SDS_INCOMPATIBLE"],
+            summary_zh=f"CAMEO 矩陣未列為禁混，但依 SDS 第 10 節交叉比對發現潛在禁忌：{sds_note}。",
+            recommendation_zh="建議分櫃或隔離存放，並詳閱雙方原廠 SDS 第 10 節「應避免之物質」確認風險。",
+            inference_note=combined_note,
         )
 
     def check_matrix(self, chemicals: list[dict[str, Any]]) -> list[CompatibilityIssue]:

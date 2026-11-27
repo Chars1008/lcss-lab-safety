@@ -134,6 +134,9 @@ class CompatibilityView(QWidget):
                 "name_en": c.name_en,
                 "smiles": c.smiles,
                 "reactive_groups": c.reactive_groups,
+                "ghs_pictograms": c.ghs_pictograms,
+                "h_codes": c.h_codes,
+                "sds_json": c.sds_json,
             })
             self.chem_list.addItem(item)
 

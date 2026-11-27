@@ -50,3 +50,22 @@ def test_cabinet_suitability_rejects_flammable_in_standard_fridge():
     res = engine.check_cabinet_suitability(["GHS02"], ["RG04"], CabinetType.FRIDGE_4C)
     assert res.compatible is False
     assert res.level == CompatibilityLevel.INCOMPATIBLE
+
+
+def test_sds_section_10_cross_check_catches_cameo_blind_spot():
+    engine = CompatibilityEngine()
+    # DMSO (67-68-5) is RG20 in CAMEO, but its SDS Section 10 warns against strong oxidizers
+    dmso = {
+        "cas_number": "67-68-5",
+        "name_zh": "二甲基亞碸 (DMSO)",
+        "sds_json": {"materials_to_avoid": "強氧化劑、醯氯、強酸"},
+    }
+    kmno4 = {
+        "cas_number": "7722-64-7",
+        "name_zh": "過錳酸鉀",
+        "ghs_pictograms": ["GHS03"],
+    }
+    issue = engine.check_pair(dmso, kmno4)
+    assert issue.level == CompatibilityLevel.CAUTION
+    assert "SDS_INCOMPATIBLE" in issue.hazards
+    assert "SDS 第 10 節" in issue.summary_zh
