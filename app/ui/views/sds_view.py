@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
+    QTextBrowser,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -39,6 +40,7 @@ from app.core.sds_generator import SDSGenerator
 from app.db.database import DatabaseManager
 from app.db.repository import LCSSRepository
 from app.schemas import ItemType, LabelRequest, SDSPayload
+from app.ui.widgets.common import GHSPictogramStrip
 from app.ui.workers import AsyncWorker
 
 
@@ -94,6 +96,9 @@ class SDSView(QWidget):
             "background: #eff6ff; border: 1px solid #93c5fd; padding: 6px 10px; border-radius: 4px; font-weight: bold; color: #1e3a8a;"
         )
         layout.addWidget(self.active_chem_banner)
+
+        self.ghs_strip = GHSPictogramStrip()
+        layout.addWidget(self.ghs_strip)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -224,6 +229,11 @@ class SDSView(QWidget):
         f5.addRow("第 14 節 緊急應變原則：", self.erg_edit)
         self.tabs.addTab(_make_scroll_tab(f5), "11-15 毒理/生態/運送")
 
+        # Tab 6: Live HTML Preview (with GHS pictograms)
+        self.preview_browser = QTextBrowser()
+        self.tabs.addTab(self.preview_browser, "即時預覽 (含 GHS 圖示)")
+        self.tabs.currentChanged.connect(self._on_preview_tab_selected)
+
         splitter.addWidget(self.tabs)
         splitter.setSizes([310, 680])
         layout.addWidget(splitter, 1)
@@ -352,6 +362,8 @@ class SDSView(QWidget):
             f" ｜ 警示語：{payload.signal_word or '無'}"
             f" ｜ 來源：{payload.data_source}"
         )
+        self.ghs_strip.set_pictograms(payload.ghs_pictograms)
+        self._update_preview_html(payload)
         self.epa_no_edit.setText(payload.epa_control_no)
         self.supplier_edit.setText(payload.supplier_info)
         self.recommended_use_edit.setText(payload.recommended_use)
@@ -441,6 +453,17 @@ class SDSView(QWidget):
                 "emergency_phone": self.settings.emergency_phone,
             }
         )
+
+    def _on_preview_tab_selected(self, idx: int) -> None:
+        if idx == self.tabs.indexOf(self.preview_browser):
+            payload = self._collect_payload()
+            if payload is not None:
+                self._update_preview_html(payload)
+
+    def _update_preview_html(self, payload: SDSPayload) -> None:
+        lang = self.lang_combo.currentData() if hasattr(self, "lang_combo") else "zh-TW"
+        html = self.sds_gen.render_sds_html(payload, language=lang or "zh-TW")
+        self.preview_browser.setHtml(html)
 
     def _on_save_sds(self) -> None:
         payload = self._collect_payload()

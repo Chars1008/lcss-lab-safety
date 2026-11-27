@@ -101,6 +101,63 @@ class ChemResolver:
         table = self._hp_zh.get("p_codes", {})
         return [f"{code}：{table[code]}" if code in table else code for code in p_codes]
 
+    def lookup_cas_by_name(
+        self,
+        query: str,
+        client: Optional[httpx.Client] = None,
+    ) -> list[dict[str, str]]:
+        """Search CAS Number by Chinese or English chemical name (offline map + PubChem synonyms)."""
+        q = query.strip().lower()
+        if not q:
+            return []
+
+        matches: list[dict[str, str]] = []
+        seen_cas: set[str] = set()
+        for cas, entry in self._cas_map.items():
+            name_zh = str(entry.get("name_zh", ""))
+            name_en = str(entry.get("name_en", ""))
+            syns = str((entry.get("sds_extra") or {}).get("synonyms", ""))
+            if q in name_zh.lower() or q in name_en.lower() or q in syns.lower():
+                matches.append({
+                    "cas_number": cas,
+                    "name_zh": name_zh,
+                    "name_en": name_en,
+                    "source": "離線資料庫",
+                })
+                seen_cas.add(cas)
+
+        if matches:
+            return matches
+
+        own_client = client is None
+        http = client or httpx.Client(timeout=self.timeout, follow_redirects=True)
+        try:
+            url = f"{self.PUBCHEM_REST}/compound/name/{query.strip()}/synonyms/JSON"
+            resp = http.get(url)
+            if resp.status_code == 200:
+                infos = resp.json().get("InformationList", {}).get("Information", [])
+                for info in infos[:3]:
+                    syns_list = info.get("Synonym", [])
+                    found_cas = next(
+                        (s.strip() for s in syns_list if CAS_PATTERN.match(s.strip()) and validate_cas_checksum(s.strip())),
+                        None,
+                    )
+                    if found_cas and found_cas not in seen_cas:
+                        seen_cas.add(found_cas)
+                        matches.append({
+                            "cas_number": found_cas,
+                            "name_zh": "",
+                            "name_en": syns_list[0] if syns_list else query.strip(),
+                            "source": "PubChem",
+                        })
+        except (httpx.HTTPError, ValueError):
+            pass
+        finally:
+            if own_client:
+                http.close()
+
+        return matches
+
     def infer_hazard_classifications(self, h_codes: list[str]) -> list[str]:
         """Derive Taiwanese GHS hazard classifications from H-codes."""
         classes: list[str] = []

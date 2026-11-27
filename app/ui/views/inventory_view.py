@@ -109,6 +109,21 @@ class InventoryView(QWidget):
         right_inner = QWidget()
         right_layout = QVBoxLayout(right_inner)
 
+        cas_lookup_row = QHBoxLayout()
+        self.name_lookup_input = QLineEdit()
+        self.name_lookup_input.setPlaceholderText("輸入中/英文品名查詢 CAS No.（例：鹽酸、Ethanol）")
+        self.name_lookup_input.returnPressed.connect(self._on_lookup_cas)
+        self.name_lookup_btn = QPushButton("查詢 CAS")
+        self.name_lookup_btn.clicked.connect(self._on_lookup_cas)
+        cas_lookup_row.addWidget(self.name_lookup_input)
+        cas_lookup_row.addWidget(self.name_lookup_btn)
+        right_layout.addLayout(cas_lookup_row)
+
+        self.cas_candidates_combo = QComboBox()
+        self.cas_candidates_combo.setVisible(False)
+        self.cas_candidates_combo.currentIndexChanged.connect(self._on_cas_candidate_selected)
+        right_layout.addWidget(self.cas_candidates_combo)
+
         cas_row = QHBoxLayout()
         self.cas_input = QLineEdit()
         self.cas_input.setPlaceholderText("輸入 CAS（例：7647-01-0）或英文品名")
@@ -364,6 +379,48 @@ class InventoryView(QWidget):
             sds_payload=base.sds_payload if base else None,
             data_source=base.data_source if base else "MANUAL_INPUT",
         )
+
+    def _on_lookup_cas(self) -> None:
+        q = self.name_lookup_input.text().strip()
+        if not q:
+            return
+        self.name_lookup_btn.setEnabled(False)
+        self.resolved_lbl.setText(f"正在依品名「{q}」查詢 CAS No....")
+        worker = AsyncWorker(self.resolver.lookup_cas_by_name, q)
+        worker.signals.finished.connect(self._on_lookup_cas_done)
+        worker.signals.error.connect(self._on_lookup_cas_error)
+        self.thread_pool.start(worker)
+
+    def _on_lookup_cas_done(self, matches: list[dict[str, str]]) -> None:
+        self.name_lookup_btn.setEnabled(True)
+        self.cas_candidates_combo.blockSignals(True)
+        self.cas_candidates_combo.clear()
+        if not matches:
+            self.cas_candidates_combo.setVisible(False)
+            self.cas_candidates_combo.blockSignals(False)
+            self.resolved_lbl.setText("查無對應之 CAS No.，請嘗試英文學名或直接手動輸入。")
+            return
+        for m in matches:
+            name_disp = m["name_zh"] or m["name_en"]
+            self.cas_candidates_combo.addItem(
+                f"{m['cas_number']} — {name_disp} [{m['source']}]", m["cas_number"]
+            )
+        self.cas_candidates_combo.setVisible(len(matches) > 1)
+        self.cas_candidates_combo.blockSignals(False)
+        first_cas = matches[0]["cas_number"]
+        self.cas_input.setText(first_cas)
+        self.edit_cas.setText(first_cas)
+        self.resolved_lbl.setText(f"找到 {len(matches)} 筆符合品名，已帶入 CAS：{first_cas}（可按「線上／離線解析」載入完整資料）")
+
+    def _on_lookup_cas_error(self, err: str) -> None:
+        self.name_lookup_btn.setEnabled(True)
+        self.resolved_lbl.setText(f"查詢 CAS 失敗：{err.splitlines()[0]}")
+
+    def _on_cas_candidate_selected(self) -> None:
+        cas = self.cas_candidates_combo.currentData()
+        if cas:
+            self.cas_input.setText(cas)
+            self.edit_cas.setText(cas)
 
     def _on_resolve(self) -> None:
         q = self.cas_input.text().strip()

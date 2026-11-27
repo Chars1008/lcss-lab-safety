@@ -32,7 +32,7 @@ from app.db.repository import LCSSRepository
 from app.schemas import CabinetType
 from app.ui.workers import AsyncWorker
 
-DEFAULT_OLLAMA_MODELS = ["qwen2.5:7b", "qwen2.5:14b", "gemma2:9b", "llama3.1:8b"]
+DEFAULT_OLLAMA_MODELS = ["gemma4:e2b", "gemma4:e4b", "qwen2.5:7b", "gemma2:9b", "llama3.1:8b"]
 
 
 class SettingsView(QWidget):

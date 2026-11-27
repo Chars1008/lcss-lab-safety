@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
             "🧪 藥品登錄與櫃位檢查",
             "⚗️ 相容性矩陣檢查",
             "📄 SDS 與瓶身標籤",
-            "⚙️ 系統與 Ollama 設定",
+            "⚙️ 設定",
         ])
 
         self.stack = QStackedWidget()

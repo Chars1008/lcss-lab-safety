@@ -141,3 +141,9 @@ def test_manual_entry_filters_cabinet_matrix_and_saved_sds_list(qtbot, tmp_path)
     assert sv.saved_sds_table.rowCount() == 3
     sv.saved_sds_table.selectRow(1)
     assert sv.chem_combo.currentData() is not None
+    assert "data:image/png;base64," in sv.preview_browser.toHtml()
+
+    # Check updated defaults & nav label
+    assert settings.lab_name == "GEMS Laboratory"
+    assert settings.ollama_model == "gemma4:e2b"
+    assert win.nav_list.item(4).text() == "⚙️ 設定"

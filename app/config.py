@@ -25,7 +25,7 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LCSS_", extra="ignore")
 
     initialized: bool = False
-    lab_name: str = "教學研究實驗室"
+    lab_name: str = "GEMS Laboratory"
     lab_manager: str = ""
     emergency_phone: str = "119 / 校安中心"
     organization: str = ""
@@ -38,7 +38,7 @@ class AppSettings(BaseSettings):
     # Local LLM (Ollama) optional integration
     llm_enabled: bool = False
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:7b"
+    ollama_model: str = "gemma4:e2b"
     ollama_timeout_seconds: float = 180.0
 
     # Network resolver settings

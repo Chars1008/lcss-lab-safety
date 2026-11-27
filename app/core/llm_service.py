@@ -31,7 +31,7 @@ class LocalLLMService:
     def __init__(
         self,
         host: str = "http://localhost:11434",
-        model: str = "qwen2.5:7b",
+        model: str = "gemma4:e2b",
         enabled: bool = False,
         timeout: float = 180.0,
     ) -> None:

@@ -87,3 +87,12 @@ def test_online_resolution_with_mocked_pubchem_and_tw_ghs():
     assert resolved.sds_payload is not None
     assert "Clear colorless liquid" in resolved.sds_payload.phys_appearance
     assert "56.05 °C" in resolved.sds_payload.phys_boiling_point
+
+
+def test_lookup_cas_by_chinese_and_english_name():
+    resolver = ChemResolver()
+    zh_res = resolver.lookup_cas_by_name("鹽酸")
+    assert any(m["cas_number"] == "7647-01-0" for m in zh_res)
+
+    en_res = resolver.lookup_cas_by_name("Acrylamide")
+    assert any(m["cas_number"] == "79-06-1" for m in en_res)
