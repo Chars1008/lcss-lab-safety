@@ -124,7 +124,7 @@ class SDSGenerator:
             "tox_symptoms": "Irritation or systemic toxicity depending on dose and route.",
             "disposal_methods": "Dispose of contents/container in accordance with local and institutional hazardous waste regulations.",
             "regulations": "Applicable occupational health, chemical labeling, and hazardous waste regulations.",
-            "preparer_org": "Ginsi Laboratory Chemical Safety System (GLCSS)",
+            "preparer_org": "GEMS Laboratory Chemical Safety System (GLCSS)",
         }
         updates: dict[str, str] = {}
         for field_name, en_val in en_defaults.items():

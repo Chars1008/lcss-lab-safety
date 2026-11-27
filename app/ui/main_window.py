@@ -24,6 +24,7 @@ from app.ui.theme import apply_theme, apply_ui_language
 from app.ui.views import (
     CompatibilityView,
     DashboardView,
+    EmergencyProcessView,
     InventoryView,
     SDSView,
     SettingsView,
@@ -73,6 +74,7 @@ class MainWindow(QMainWindow):
             "🧪 藥品登錄與櫃位檢查",
             "⚗️ 相容性矩陣檢查",
             "📄 SDS 與瓶身標籤",
+            "🚨 緊急應變流程",
             "⚙️ 設定",
         ])
 
@@ -82,6 +84,9 @@ class MainWindow(QMainWindow):
         self.compatibility_view = CompatibilityView(self.db, self.compat_engine)
         self.sds_view = SDSView(
             self.db, self.settings, self.resolver, self.sds_gen, self.pdf_parser, self.llm_service
+        )
+        self.emergency_view = EmergencyProcessView(
+            self.db, self.settings, self.resolver, self.sds_gen, self.llm_service
         )
         self.settings_view = SettingsView(
             self.db,
@@ -98,6 +103,7 @@ class MainWindow(QMainWindow):
             self.inventory_view,
             self.compatibility_view,
             self.sds_view,
+            self.emergency_view,
             self.settings_view,
         ):
             self.stack.addWidget(view)
@@ -118,6 +124,7 @@ class MainWindow(QMainWindow):
         self.inventory_view.refresh_table()
         self.compatibility_view.reload_chemicals()
         self.sds_view.reload_chemicals()
+        self.emergency_view.reload_chemicals()
 
     def _on_tab_changed(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
@@ -131,4 +138,6 @@ class MainWindow(QMainWindow):
         elif index == 3:
             self.sds_view.reload_chemicals()
         elif index == 4:
+            self.emergency_view.reload_chemicals()
+        elif index == 5:
             self.settings_view.reload_locations_table()

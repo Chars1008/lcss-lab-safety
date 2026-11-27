@@ -329,3 +329,110 @@ class LocalLLMService:
         if parsed and isinstance(parsed.get("advice_zh"), str) and parsed["advice_zh"].strip():
             return parsed["advice_zh"].strip()
         return issue.recommendation_zh
+
+    def generate_emergency_process(
+        self,
+        sds: SDSPayload,
+        language: str = "zh-TW",
+        client: Optional[httpx.Client] = None,
+    ) -> dict[str, str]:
+        """Generate structured Emergency Process SOP (spill, contact, ingestion/inhalation, fire) from SDS.
+
+        Falls back deterministically to SDS Sections 4, 5, 6, 10 when Ollama is disabled or offline.
+        """
+        fallback = {
+            "spill": (
+                f"{sds.release_personal}\n{sds.release_env}\n{sds.release_cleanup}"
+                if language != "en"
+                else "1. Restrict unauthorized access and wear full PPE.\n2. Ventilate area and eliminate ignition sources.\n3. Absorb/contain spill and dispose as hazardous waste."
+            ),
+            "contact": (
+                f"【眼睛接觸】\n{sds.first_aid_eye}\n\n【皮膚接觸】\n{sds.first_aid_skin}"
+                if language != "en"
+                else f"[Eye Contact]\n{sds.first_aid_eye}\n\n[Skin Contact]\n{sds.first_aid_skin}"
+            ),
+            "ingestion_inhalation": (
+                f"【吸入】\n{sds.first_aid_inhalation}\n\n【食入／誤食】\n{sds.first_aid_ingestion}\n\n【對醫師提示】\n{sds.first_aid_physician_note}"
+                if language != "en"
+                else f"[Inhalation]\n{sds.first_aid_inhalation}\n\n[Ingestion]\n{sds.first_aid_ingestion}\n\n[Notes to Physician]\n{sds.first_aid_physician_note}"
+            ),
+            "fire_reactivity": (
+                f"【滅火劑與特殊危害】{sds.fire_extinguishing_media}\n{sds.fire_special_hazards}\n\n【應避免接觸物質】\n{sds.materials_to_avoid}"
+                if language != "en"
+                else f"[Firefighting]\n{sds.fire_extinguishing_media}\n{sds.fire_special_hazards}\n\n[Incompatible Materials]\n{sds.materials_to_avoid}"
+            ),
+            "source": "OFFLINE_SDS_RULES",
+        }
+
+        if not self.enabled:
+            return fallback
+
+        lang_note = (
+            "Clear, actionable English step-by-step SOP (no Chinese)"
+            if language == "en"
+            else "台灣繁體中文，條列式、簡明可立即執行的實驗室應變 SOP"
+        )
+        sections_prompt = {
+            "spill": (
+                f"Based on the SDS below, write a step-by-step Spill / Release Emergency Response SOP in {lang_note}. "
+                "Output ONLY the numbered steps.\n"
+                f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
+                f"Hazards: {', '.join(sds.h_codes)}\n"
+                f"Release Info: {sds.release_personal} {sds.release_env} {sds.release_cleanup}"
+            ),
+            "contact": (
+                f"Based on the SDS below, write a step-by-step Skin & Eye Contact First Aid SOP in {lang_note}. "
+                "Output ONLY the numbered steps.\n"
+                f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
+                f"Eye: {sds.first_aid_eye}\nSkin: {sds.first_aid_skin}"
+            ),
+            "ingestion_inhalation": (
+                f"Based on the SDS below, write a step-by-step Inhalation & Ingestion First Aid SOP (including physician notes) in {lang_note}. "
+                "Output ONLY the numbered steps.\n"
+                f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
+                f"Inhalation: {sds.first_aid_inhalation}\nIngestion: {sds.first_aid_ingestion}\nPhysician: {sds.first_aid_physician_note}"
+            ),
+            "fire_reactivity": (
+                f"Based on the SDS below, write a step-by-step Fire & Incompatible Reaction Emergency SOP in {lang_note}. "
+                "Output ONLY the numbered steps.\n"
+                f"Chemical: {sds.name_en} / {sds.name_zh} (CAS: {sds.cas_number})\n"
+                f"Fire: {sds.fire_extinguishing_media} {sds.fire_special_hazards}\nAvoid: {sds.materials_to_avoid}"
+            ),
+        }
+
+        result = dict(fallback)
+        own_client = client is None
+        http = client or httpx.Client(
+            timeout=httpx.Timeout(connect=10.0, read=max(self.timeout, 180.0), write=30.0, pool=10.0)
+        )
+        try:
+            self.last_error = ""
+            any_ok = False
+            for key, prompt in sections_prompt.items():
+                payload_json: dict[str, Any] = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "think": False,
+                    "keep_alive": "10m",
+                    "options": {"num_ctx": 4096},
+                }
+                resp = http.post(f"{self.host}/api/generate", json=payload_json)
+                if resp.status_code == 500:
+                    payload_json["options"] = {"num_ctx": 2048, "num_gpu": 0}
+                    resp = http.post(f"{self.host}/api/generate", json=payload_json)
+                if resp.status_code != 200:
+                    self.last_error = f"Ollama HTTP {resp.status_code}: {resp.text[:160]}"
+                    break
+                text = resp.json().get("response", "").strip()
+                if text:
+                    result[key] = text
+                    any_ok = True
+            if any_ok:
+                result["source"] = f"OLLAMA ({self.model})"
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            self.last_error = f"Ollama 連線失敗：{exc}"
+        finally:
+            if own_client:
+                http.close()
+        return result

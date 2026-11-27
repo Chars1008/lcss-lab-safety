@@ -19,8 +19,8 @@ def test_main_window_smoke(qtbot, tmp_path):
     qtbot.addWidget(win)
     win.show()
 
-    assert win.nav_list.count() == 5
-    for idx in range(5):
+    assert win.nav_list.count() == 6
+    for idx in range(6):
         win.nav_list.setCurrentRow(idx)
         assert win.stack.currentIndex() == idx
 
@@ -148,7 +148,7 @@ def test_manual_entry_filters_cabinet_matrix_and_saved_sds_list(qtbot, tmp_path)
     # Check updated defaults & nav label
     assert settings.lab_name == "GEMS Laboratory"
     assert settings.ollama_model == "gemma4:e2b"
-    assert win.nav_list.item(4).text() == "⚙️ 設定"
+    assert win.nav_list.item(5).text() == "⚙️ 設定"
     assert "background-color: #ffffff" in sv.preview_browser.styleSheet()
 
 
@@ -203,11 +203,16 @@ def test_ui_language_dark_light_theme_and_storage_paths(qtbot, tmp_path, monkeyp
     qtbot.addWidget(win)
     sv = win.settings_view
 
-    # Switch UI language to English -> immediate update
+    # Switch UI language to English -> immediate update across all views
     idx_en = sv.ui_lang_combo.findData("en")
     sv.ui_lang_combo.setCurrentIndex(idx_en)
+    assert "GEMS Laboratory Chemical Safety System" in win.windowTitle()
     assert "Safety Overview" in win.nav_list.item(0).text()
-    assert "Settings" in win.nav_list.item(4).text()
+    assert "Emergency Process" in win.nav_list.item(4).text()
+    assert "Settings" in win.nav_list.item(5).text()
+    assert win.dashboard_view.title_lbl.text() == "Safety Overview & Guidance"
+    assert "Compatibility Check Matrix" in win.compatibility_view.title_lbl.text()
+    assert "Emergency Process" in win.emergency_view.title_lbl.text()
 
     # Switch back to zh-TW
     idx_zh = sv.ui_lang_combo.findData("zh-TW")
@@ -225,3 +230,31 @@ def test_ui_language_dark_light_theme_and_storage_paths(qtbot, tmp_path, monkeyp
     # Verify path fields populated
     assert sv.exports_dir_edit.text() == str(tmp_path / "exports")
     assert sv.sds_dir_edit.text() == str(tmp_path / "sds_files")
+
+
+def test_emergency_process_offline_and_llm_generation(qtbot, tmp_path):
+    import httpx
+    import respx
+    from app.core.llm_service import LocalLLMService
+
+    settings = AppSettings(initialized=True, db_path=str(tmp_path / "emerg.db"))
+    db = init_db(settings.db_path)
+    resolver = ChemResolver()
+    with db.get_session() as session:
+        LCSSRepository(session).upsert_chemical(resolver.resolve_offline("7647-01-0"))
+
+    win = MainWindow(db, settings)
+    qtbot.addWidget(win)
+    ev = win.emergency_view
+    ev.reload_chemicals()
+    assert ev.chem_combo.count() == 1
+    assert "沖洗" in ev.txt_contact.toPlainText()
+
+    with respx.mock:
+        respx.post("http://localhost:11434/api/generate").mock(
+            return_value=httpx.Response(200, json={"response": "1. Evacuate area.\n2. Neutralize carefully."})
+        )
+        llm = LocalLLMService(enabled=True)
+        sop = llm.generate_emergency_process(resolver.resolve_offline("7647-01-0").sds_payload, language="en")
+        assert "OLLAMA" in sop["source"]
+        assert "Evacuate area" in sop["spill"]

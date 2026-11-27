@@ -1,7 +1,7 @@
 [project]
 name = "lcss-lab-safety"
 version = "0.1.0"
-description = "勤思實驗室藥品安全管理系統(GLCSS) - Ginsi Laboratory Chemical Safety System"
+description = "勤思實驗室藥品安全管理系統(GLCSS) - GEMS Laboratory Chemical Safety System"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = "MIT"
