@@ -2,6 +2,7 @@
 
 from app.config import AppSettings
 from app.core.chem_resolver import ChemResolver
+from app.core.updater import GitHubUpdater
 from app.db.database import init_db
 from app.db.repository import LCSSRepository
 from app.ui.main_window import MainWindow
@@ -148,3 +149,39 @@ def test_manual_entry_filters_cabinet_matrix_and_saved_sds_list(qtbot, tmp_path)
     assert settings.lab_name == "GEMS Laboratory"
     assert settings.ollama_model == "gemma4:e2b"
     assert win.nav_list.item(4).text() == "⚙️ 設定"
+    assert "background-color: #ffffff" in sv.preview_browser.styleSheet()
+
+
+def test_github_updater_check_and_zip_apply(tmp_path):
+    import io
+    import zipfile
+    import httpx
+    import respx
+
+    app_dir = tmp_path / "glcss_app"
+    (app_dir / "config").mkdir(parents=True)
+    (app_dir / "config" / "version.txt").write_text("oldsha1", encoding="utf-8")
+    (app_dir / "config" / "settings.json").write_text('{"lab_name":"MyLab"}', encoding="utf-8")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("lcss-lab-safety-main/app/hello.py", "X = 1\n")
+        zf.writestr("lcss-lab-safety-main/config/settings.json", '{"lab_name":"SHOULD_NOT_OVERWRITE"}')
+
+    with respx.mock:
+        respx.get("https://api.github.com/repos/Chars1008/lcss-lab-safety/commits/main").mock(
+            return_value=httpx.Response(200, json={"sha": "newsha9999999"})
+        )
+        respx.get("https://github.com/Chars1008/lcss-lab-safety/archive/refs/heads/main.zip").mock(
+            return_value=httpx.Response(200, content=buf.getvalue())
+        )
+        updater = GitHubUpdater(app_root=app_dir)
+        chk = updater.check_for_updates()
+        assert chk.has_update is True
+        assert chk.remote_sha == "newsha9"
+
+        ok, msg = updater.apply_update()
+        assert ok is True
+        assert (app_dir / "app" / "hello.py").exists()
+        # User config must be preserved
+        assert "MyLab" in (app_dir / "config" / "settings.json").read_text(encoding="utf-8")

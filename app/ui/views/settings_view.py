@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 from app.config import AppSettings, EXPORTS_DIR
 from app.core.backup import export_bundle_json, export_inventory_csv, import_bundle_json
 from app.core.llm_service import LocalLLMService
+from app.core.updater import GitHubUpdater
 from app.db.database import DatabaseManager
 from app.db.repository import LCSSRepository
 from app.schemas import CabinetType
@@ -159,6 +160,22 @@ class SettingsView(QWidget):
         llm_form.addRow("模型名稱：", self.ollama_model_combo)
         llm_form.addRow(row)
         layout.addWidget(llm_box)
+
+        # 5. Online GitHub Update
+        upd_box = QGroupBox("更新（GitHub 線上自動更新）")
+        upd_row = QHBoxLayout(upd_box)
+        self.updater = GitHubUpdater()
+        self.update_status_lbl = QLabel(f"目前版本：{self.updater.get_local_sha()}")
+        check_upd_btn = QPushButton("檢查更新")
+        check_upd_btn.clicked.connect(self._check_github_update)
+        apply_upd_btn = QPushButton("從 GitHub 自動更新")
+        apply_upd_btn.setStyleSheet("background: #0f766e; color: #fff; font-weight: bold; padding: 5px 10px;")
+        apply_upd_btn.clicked.connect(self._apply_github_update)
+        upd_row.addWidget(self.update_status_lbl, 1)
+        upd_row.addWidget(check_upd_btn)
+        upd_row.addWidget(apply_upd_btn)
+        layout.addWidget(upd_box)
+
         layout.addStretch(1)
 
         scroll.setWidget(content)
@@ -336,3 +353,26 @@ class SettingsView(QWidget):
             self.ollama_status_lbl.setText(f"連線成功！找到 {len(models)} 個本機模型")
         else:
             self.ollama_status_lbl.setText("無法連線至 Ollama（離線規則模式不受影響）")
+
+    def _check_github_update(self) -> None:
+        self.update_status_lbl.setText("正在連線 GitHub 檢查版本...")
+        worker = AsyncWorker(self.updater.check_for_updates)
+        worker.signals.finished.connect(self._on_check_update_done)
+        self.thread_pool.start(worker)
+
+    def _on_check_update_done(self, res) -> None:
+        self.update_status_lbl.setText(res.message)
+
+    def _apply_github_update(self) -> None:
+        self.update_status_lbl.setText("正在從 GitHub 下載並套用更新...")
+        worker = AsyncWorker(self.updater.apply_update)
+        worker.signals.finished.connect(self._on_apply_update_done)
+        self.thread_pool.start(worker)
+
+    def _on_apply_update_done(self, res: tuple[bool, str]) -> None:
+        ok, msg = res
+        self.update_status_lbl.setText(msg)
+        if ok:
+            QMessageBox.information(self, "更新完成", msg)
+        else:
+            QMessageBox.warning(self, "更新失敗", msg)

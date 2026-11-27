@@ -43,7 +43,7 @@ class CompatibilityView(QWidget):
         self._issue_lookup: dict[tuple[int, int], CompatibilityIssue] = {}
 
         layout = QVBoxLayout(self)
-        title = QLabel("化學品自由配伍相容性矩陣（N × N 互動檢查器）")
+        title = QLabel("化學相容性檢查矩陣（N × N 互動檢查器）")
         title.setStyleSheet("font-size: 15pt; font-weight: bold;")
         layout.addWidget(title)
 

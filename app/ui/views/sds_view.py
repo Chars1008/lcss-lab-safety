@@ -229,8 +229,9 @@ class SDSView(QWidget):
         f5.addRow("第 14 節 緊急應變原則：", self.erg_edit)
         self.tabs.addTab(_make_scroll_tab(f5), "11-15 毒理/生態/運送")
 
-        # Tab 6: Live HTML Preview (with GHS pictograms)
+        # Tab 6: Live HTML Preview (with GHS pictograms, white background only for preview)
         self.preview_browser = QTextBrowser()
+        self.preview_browser.setStyleSheet("QTextBrowser { background-color: #ffffff; color: #111827; }")
         self.tabs.addTab(self.preview_browser, "即時預覽 (含 GHS 圖示)")
         self.tabs.currentChanged.connect(self._on_preview_tab_selected)
 
