@@ -1,20 +1,23 @@
-"""Application entrypoint for Laboratory Chemical Safety System (LCSS)."""
+"""Application entrypoint for 勤思實驗室藥品安全管理系統(GLCSS)."""
 
 from __future__ import annotations
 
 import sys
+import traceback
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QPixmap
-from PySide6.QtWidgets import QApplication, QSplashScreen
+from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 
 
 def main() -> int:
     """Initialize settings, database, optional first-run wizard, and main window."""
     app = QApplication(sys.argv)
     app.setApplicationName("勤思實驗室藥品安全管理系統(GLCSS)")
+    # Prevent splash.close() from triggering quitOnLastWindowClosed before wizard/main window shows
+    app.setQuitOnLastWindowClosed(False)
 
-    # Show immediate splash screen while RDKit / SQLAlchemy / PyMuPDF initialize
     pix = QPixmap(420, 150)
     pix.fill(QColor("#1e3a8a"))
     splash = QSplashScreen(pix)
@@ -27,31 +30,45 @@ def main() -> int:
     splash.show()
     app.processEvents()
 
-    from app.config import AppSettings
-    from app.db.database import DatabaseManager
-    from app.ui.main_window import MainWindow
-    from app.ui.setup_wizard import SetupWizard
+    try:
+        from app.config import AppSettings, STORAGE_DIR
+        from app.db.database import DatabaseManager
+        from app.ui.main_window import MainWindow
+        from app.ui.setup_wizard import SetupWizard
 
-    settings = AppSettings.load()
-    settings.ensure_directories()
+        settings = AppSettings.load()
+        settings.ensure_directories()
 
-    db = DatabaseManager(settings.db_path)
-    db.init_db()
+        db = DatabaseManager(settings.db_path)
+        db.init_db()
 
-    if not settings.initialized:
+        if not settings.initialized:
+            wizard = SetupWizard(db, settings)
+            wizard.show()
+            wizard.raise_()
+            wizard.activateWindow()
+            splash.finish(wizard)
+            if wizard.exec() != SetupWizard.DialogCode.Accepted:
+                return 0
+
+        window = MainWindow(db, settings)
+        app.setQuitOnLastWindowClosed(True)
+        window.show()
+        window.raise_()
+        window.activateWindow()
+        splash.finish(window)
+        return app.exec()
+    except Exception as exc:
         splash.close()
-        wizard = SetupWizard(db, settings)
-        wizard.raise_()
-        wizard.activateWindow()
-        if wizard.exec() != SetupWizard.DialogCode.Accepted:
-            return 0
-
-    window = MainWindow(db, settings)
-    window.show()
-    window.raise_()
-    window.activateWindow()
-    splash.finish(window)
-    return app.exec()
+        err_text = f"{exc}\n\n{traceback.format_exc()}"
+        try:
+            log_path = Path(__file__).resolve().parent / "storage" / "startup_error.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(err_text, encoding="utf-8")
+        except Exception:
+            pass
+        QMessageBox.critical(None, "GLCSS 啟動錯誤", f"啟動時發生錯誤：\n{exc}")
+        return 1
 
 
 if __name__ == "__main__":
