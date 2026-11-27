@@ -208,10 +208,12 @@ class CompatibilityEngine:
         if not avoid_a and not avoid_b:
             return None
 
-        # Keyword categories mapped to reactive groups / GHS pictograms / H-codes
+        # Keyword categories mapped strictly to true reactive groups / GHS pictograms / H-codes
+        # Note: Do NOT map GHS05 (corrosive) to acids, because bases (NaOH) and phenols also carry GHS05.
         category_rules = [
-            ("強酸/酸類", ("酸", "acid"), ("RG01", "RG02", "RG03"), ("GHS05",), ()),
-            ("強鹼/鹼類", ("鹼", "alkali", "base", "hydroxide"), ("RG08",), (), ()),
+            ("強酸", ("強酸", "strong acid"), ("RG01", "RG02"), (), ()),
+            ("酸類", ("有機酸", "carboxylic acid", "acetic acid"), ("RG01", "RG02", "RG03"), (), ()),
+            ("強鹼/鹼類", ("強鹼", "鹼", "alkali", "strong base"), ("RG08",), (), ()),
             ("強氧化劑", ("氧化劑", "oxidiz", "peroxide", "過氧化物"), ("RG02", "RG09", "RG16", "RG17"), ("GHS03",), ()),
             ("還原劑", ("還原劑", "reduc"), ("RG19",), (), ()),
             ("水/潮氣", ("水", "water", "moisture"), ("RG20",), (), ("H260", "EUH014")),

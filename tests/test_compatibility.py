@@ -69,3 +69,28 @@ def test_sds_section_10_cross_check_catches_cameo_blind_spot():
     assert issue.level == CompatibilityLevel.CAUTION
     assert "SDS_INCOMPATIBLE" in issue.hazards
     assert "SDS 第 10 節" in issue.summary_zh
+
+
+def test_phenol_plus_ethanol_must_be_compatible():
+    from app.core.chem_resolver import ChemResolver
+    engine = CompatibilityEngine()
+    resolver = ChemResolver()
+    phenol = resolver.resolve_offline("108-95-2")
+    ethanol = resolver.resolve_offline("64-17-5")
+    assert phenol is not None and ethanol is not None
+
+    issue = engine.check_pair(
+        {
+            "cas_number": phenol.cas_number,
+            "name_zh": phenol.name_zh,
+            "ghs_pictograms": phenol.ghs_pictograms,
+            "sds_json": phenol.sds_payload.model_dump(),
+        },
+        {
+            "cas_number": ethanol.cas_number,
+            "name_zh": ethanol.name_zh,
+            "ghs_pictograms": ethanol.ghs_pictograms,
+            "sds_json": ethanol.sds_payload.model_dump(),
+        },
+    )
+    assert issue.level == CompatibilityLevel.COMPATIBLE
