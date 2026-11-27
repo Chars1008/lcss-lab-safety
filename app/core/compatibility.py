@@ -215,7 +215,6 @@ class CompatibilityEngine:
             ("強氧化劑", ("氧化劑", "oxidiz", "peroxide", "過氧化物"), ("RG02", "RG09", "RG16", "RG17"), ("GHS03",), ()),
             ("還原劑", ("還原劑", "reduc"), ("RG19",), (), ()),
             ("水/潮氣", ("水", "water", "moisture"), ("RG20",), (), ("H260", "EUH014")),
-            ("有機溶劑/易燃物", ("易燃", "溶劑", "flammable", "solvent"), ("RG04", "RG11", "RG12", "RG14", "RG15"), ("GHS02",), ()),
         ]
 
         hits: list[str] = []
