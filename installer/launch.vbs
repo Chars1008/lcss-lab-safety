@@ -8,14 +8,14 @@ mainPy = fso.BuildPath(appRoot, "main.py")
 
 shell.CurrentDirectory = appRoot
 If fso.FileExists(pythonw) Then
-    shell.Run """" & pythonw & """ """ & mainPy & """", 0, False
+    shell.Run """" & pythonw & """ """ & mainPy & """", 1, False
 ElseIf fso.FileExists(pythonExe) Then
     shell.Run """" & pythonExe & """ """ & mainPy & """", 0, False
 Else
     bootstrap = fso.BuildPath(scriptDir, "bootstrap.ps1")
     shell.Run "powershell.exe -ExecutionPolicy Bypass -File """ & bootstrap & """ -InstallDir """ & appRoot & """", 1, True
     If fso.FileExists(pythonw) Then
-        shell.Run """" & pythonw & """ """ & mainPy & """", 0, False
+        shell.Run """" & pythonw & """ """ & mainPy & """", 1, False
     ElseIf fso.FileExists(pythonExe) Then
         shell.Run """" & pythonExe & """ """ & mainPy & """", 0, False
     Else
