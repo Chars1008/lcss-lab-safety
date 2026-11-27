@@ -7,7 +7,7 @@ import traceback
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 
 
@@ -15,6 +15,9 @@ def main() -> int:
     """Initialize settings, database, optional first-run wizard, and main window."""
     app = QApplication(sys.argv)
     app.setApplicationName("勤思實驗室藥品安全管理系統(GLCSS)")
+    icon_file = Path(__file__).resolve().parent / "data" / "icons" / "app_icon.png"
+    if icon_file.exists():
+        app.setWindowIcon(QIcon(str(icon_file)))
     # Prevent splash.close() from triggering quitOnLastWindowClosed before wizard/main window shows
     app.setQuitOnLastWindowClosed(False)
 

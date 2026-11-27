@@ -6,6 +6,7 @@ import sys
 from datetime import date, timedelta
 from typing import Optional
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -18,7 +19,7 @@ from PySide6.QtWidgets import (
     QWizardPage,
 )
 
-from app.config import AppSettings
+from app.config import AppSettings, DATA_DIR
 from app.core.chem_resolver import ChemResolver
 from app.core.llm_service import LocalLLMService
 from app.db.database import DatabaseManager
@@ -150,6 +151,9 @@ class SetupWizard(QWizard):
         self.db = db
         self.settings = settings
         self.setWindowTitle("GLCSS 首次啟動設定精靈")
+        icon_path = DATA_DIR / "icons" / "app_icon.png"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(620, 440)
 
         self.page_welcome = WelcomeHealthPage(settings)

@@ -11,6 +11,8 @@ OutputBaseFilename=GLCSS_Setup
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
+SetupIconFile=..\data\icons\app_icon.ico
+UninstallDisplayIcon={app}\data\icons\app_icon.ico
 UninstallDisplayName=勤思實驗室藥品安全管理系統(GLCSS)
 
 [Languages]
@@ -20,9 +22,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "..\*"; DestDir: "{app}"; Excludes: ".venv,.venv\*,__pycache__,__pycache__\*,*.pyc,.pytest_cache,.pytest_cache\*,.git,.git\*,dist,dist\*,storage,storage\*,config,config\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\勤思實驗室藥品安全管理系統(GLCSS)"; Filename: "wscript.exe"; Parameters: """{app}\installer\launch.vbs"""; WorkingDir: "{app}"
+Name: "{group}\勤思實驗室藥品安全管理系統(GLCSS)"; Filename: "wscript.exe"; Parameters: """{app}\installer\launch.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\data\icons\app_icon.ico"
 Name: "{group}\解除安裝 GLCSS"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\勤思實驗室藥品安全管理系統(GLCSS)"; Filename: "wscript.exe"; Parameters: """{app}\installer\launch.vbs"""; WorkingDir: "{app}"
+Name: "{autodesktop}\勤思實驗室藥品安全管理系統(GLCSS)"; Filename: "wscript.exe"; Parameters: """{app}\installer\launch.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\data\icons\app_icon.ico"
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\installer\bootstrap.ps1"" -InstallDir ""{app}"""; StatusMsg: "正在建立獨立 Python 虛擬環境與安裝依賴..."; Flags: waituntilterminated

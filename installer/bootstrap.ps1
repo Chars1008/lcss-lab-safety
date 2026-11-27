@@ -66,6 +66,7 @@ $Shortcut = $WshShell.CreateShortcut((Join-Path $DesktopPath "勤思實驗室藥
 $Shortcut.TargetPath = "wscript.exe"
 $Shortcut.Arguments = "`"$(Join-Path $SourceRoot 'installer\launch.vbs')`""
 $Shortcut.WorkingDirectory = $SourceRoot
+$Shortcut.IconLocation = (Join-Path $SourceRoot "data\icons\app_icon.ico")
 $Shortcut.Description = "勤思實驗室藥品安全管理系統(GLCSS)"
 $Shortcut.Save()
 

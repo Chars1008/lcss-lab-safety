@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -13,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.config import AppSettings
+from app.config import AppSettings, DATA_DIR
 from app.core.chem_resolver import ChemResolver
 from app.core.compatibility import CompatibilityEngine
 from app.core.llm_service import LocalLLMService
@@ -44,6 +45,9 @@ class MainWindow(QMainWindow):
         self.db = db
         self.settings = settings
         self.setWindowTitle("勤思實驗室藥品安全管理系統(GLCSS)")
+        icon_path = DATA_DIR / "icons" / "app_icon.png"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(1180, 760)
 
         self.resolver = ChemResolver(timeout=settings.network_timeout_seconds)
