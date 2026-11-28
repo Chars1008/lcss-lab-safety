@@ -183,11 +183,11 @@ class SDSPayload(BaseModel):
 
     # Section 10: Stability & Reactivity
     stability: str = "正常狀況下安定"
-    hazardous_reactions: str = "接觸不相容物質（如強酸、強鹼或強氧化劑）可能發生劇烈放熱或釋出有害氣體。"
+    hazardous_reactions: str = "接觸不相容物質可能發生劇烈放熱、起火或釋出有害氣體。"
     conditions_to_avoid: str = "高熱、明火、火花、陽光直射。"
-    materials_to_avoid: str = "強酸、強鹼、強氧化劑（詳見本系統相容性檢查引擎）。"
-    decomp_products: str = "加熱分解可能釋出刺激性或毒性氣體（如 CO、CO2、NOx 或鹵化氫）。"
-    section_10_stability_reactivity: str = "常溫常壓下安定；避免接觸不相容之強酸、強鹼或強氧化劑。"
+    materials_to_avoid: str = "請依相容性檢查矩陣確認不相容物質。"
+    decomp_products: str = "加熱分解可能釋出刺激性或毒性氣體。"
+    section_10_stability_reactivity: str = "常溫常壓下安定；應避免接觸相容性矩陣所列之不相容物質。"
 
     # Section 11: Toxicological Information
     tox_routes: str = "皮膚接觸、吸入、食入、眼睛接觸"

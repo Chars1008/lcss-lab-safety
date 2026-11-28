@@ -172,3 +172,14 @@ def test_english_sds_export_and_bidirectional_translation(tmp_path):
     assert "乙醇" in translated_zh.name_zh
     assert "Clear colorless liquid" in translated_zh.phys_appearance
     assert "澄清無色液體" in translated_zh.phys_appearance
+
+
+def test_naoh_and_koh_sds_do_not_list_strong_base_as_incompatible():
+    resolver = ChemResolver()
+    for cas in ("1310-73-2", "1310-58-3"):
+        res = resolver.resolve_offline(cas)
+        assert res is not None and res.sds_payload is not None
+        avoid = res.sds_payload.materials_to_avoid
+        assert "強鹼" not in avoid
+        assert "強非氧化性酸" in avoid
+        assert "鹵代有機溶劑" in avoid

@@ -83,6 +83,10 @@ class ChemResolver:
         self.data_dir = data_dir or DATA_DIR
         self.timeout = timeout
         self._cas_map: dict[str, dict[str, Any]] = self._load_json("cameo_cas_map.json", {})
+        self._cameo_groups: dict[str, dict[str, str]] = self._load_json("cameo_groups.json", {})
+        self._cameo_matrix: list[dict[str, Any]] = self._load_json(
+            "cameo_matrix.json", {"rules": []}
+        ).get("rules", [])
         self._hp_zh: dict[str, dict[str, str]] = self._load_json(
             "ghs_hp_zh_tw.json", {"h_codes": {}, "p_codes": {}}
         )
@@ -167,6 +171,35 @@ class ChemResolver:
                 classes.append(label)
         return classes
 
+    def _derive_section_10_from_groups(
+        self, reactive_groups: list[str]
+    ) -> tuple[str, str]:
+        """Derive non-self-contradictory materials_to_avoid & hazardous_reactions from CAMEO matrix."""
+        if not reactive_groups:
+            return "", ""
+        avoid_names: list[str] = []
+        reactions: list[str] = []
+        own_set = set(reactive_groups)
+        for rule in self._cameo_matrix:
+            a, b = rule.get("a"), rule.get("b")
+            other = None
+            if a in own_set and b not in own_set:
+                other = b
+            elif b in own_set and a not in own_set:
+                other = a
+            if other is None:
+                continue
+            grp_zh = self._cameo_groups.get(other, {}).get("name_zh", other)
+            if grp_zh not in avoid_names:
+                avoid_names.append(grp_zh)
+            summary = rule.get("summary", "").strip()
+            if summary and summary not in reactions:
+                reactions.append(summary)
+
+        avoid_str = "\n".join(f"{i}. {name}" for i, name in enumerate(avoid_names, 1))
+        react_str = "\n".join(f"{i}. {r}" for i, r in enumerate(reactions[:5], 1))
+        return avoid_str, react_str
+
     def _build_sds_payload(
         self,
         cas: str,
@@ -182,26 +215,34 @@ class ChemResolver:
         p_codes: list[str],
         data_source: str,
         extra: Optional[dict[str, Any]] = None,
+        reactive_groups: Optional[list[str]] = None,
     ) -> SDSPayload:
         classifications = self.infer_hazard_classifications(h_codes)
-        payload = SDSPayload(
-            cas_number=cas,
-            name_zh=name_zh,
-            name_en=name_en,
-            formula=formula,
-            molecular_weight=mw,
-            smiles=smiles,
-            inchikey=inchikey,
-            ghs_pictograms=pictograms,
-            signal_word=signal_word,
-            h_codes=h_codes,
-            p_codes=p_codes,
-            h_statements_zh=self.translate_h_codes(h_codes),
-            p_statements_zh=self.translate_p_codes(p_codes),
-            hazard_classifications=classifications,
-            hazard_classification_zh="；".join(classifications),
-            data_source=data_source,
-        )
+        avoid_str, react_str = self._derive_section_10_from_groups(reactive_groups or [])
+        payload_kwargs: dict[str, Any] = {
+            "cas_number": cas,
+            "name_zh": name_zh,
+            "name_en": name_en,
+            "formula": formula,
+            "molecular_weight": mw,
+            "smiles": smiles,
+            "inchikey": inchikey,
+            "ghs_pictograms": pictograms,
+            "signal_word": signal_word,
+            "h_codes": h_codes,
+            "p_codes": p_codes,
+            "h_statements_zh": self.translate_h_codes(h_codes),
+            "p_statements_zh": self.translate_p_codes(p_codes),
+            "hazard_classifications": classifications,
+            "hazard_classification_zh": "；".join(classifications),
+            "data_source": data_source,
+        }
+        if avoid_str:
+            payload_kwargs["materials_to_avoid"] = avoid_str
+            payload_kwargs["section_10_stability_reactivity"] = f"常溫常壓下安定；應避免接觸：{avoid_str.replace(chr(10), '、')}"
+        if react_str:
+            payload_kwargs["hazardous_reactions"] = react_str
+        payload = SDSPayload(**payload_kwargs)
         if extra:
             valid_updates = {k: v for k, v in extra.items() if hasattr(payload, k)}
             payload = payload.model_copy(update=valid_updates)
@@ -236,6 +277,7 @@ class ChemResolver:
             p_codes=p_codes,
             data_source="OFFLINE_CAMEO_TW_GHS",
             extra=entry.get("sds_extra"),
+            reactive_groups=entry.get("groups", []),
         )
         return ResolvedChemical(
             cas_number=cas,
@@ -321,6 +363,7 @@ class ChemResolver:
                 p_codes=p_codes,
                 data_source="PUBCHEM_TW_GHS",
                 extra=merged_extra,
+                reactive_groups=offline.reactive_groups if offline else [],
             )
             return ResolvedChemical(
                 cas_number=cas,
